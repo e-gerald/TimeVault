@@ -15,6 +15,7 @@ export default function VaultInitializer({
   // from parent
   pickCreateDir,
   isInitializing,
+  log,
 }) {
   // ✅ Fixed handleCreate to pass directory path as string
   const handleCreate = async () => {
@@ -28,36 +29,44 @@ export default function VaultInitializer({
 
   return (
     <div
-      className="modal-backdrop fixed inset-0 flex items-center justify-center z-[9999]"
+      className="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]"
       ref={dropRef}
     >
-      <div className="modal-window space-y-4 dark:bg-[#0f0f15] dark:text-gray-100 bg-white rounded-2xl p-6 w-[480px] max-w-[94vw] border border-gray-200 dark:border-gray-700">
+      <div className="modal-window space-y-4 dark:bg-[#0f0f15] dark:text-gray-100 bg-white rounded-2xl p-6 w-[480px] max-w-[94vw] border border-gray-200 dark:border-gray-700 relative" style={{ direction: 'ltr' }}>
+        {/* Close button */}
+        <button
+          onClick={() => setShowCreate(false)}
+          disabled={isInitializing}
+          className="absolute disabled:opacity-50 text-3xl font-light leading-none"
+          style={{ top: '1rem', right: '1rem', left: 'auto', color: '#ef4444' }}
+          onMouseEnter={(e) => e.target.style.color = '#dc2626'}
+          onMouseLeave={(e) => e.target.style.color = '#ef4444'}
+          aria-label="Close"
+        >
+          ×
+        </button>
+
         <h2 className="text-xl font-semibold text-center mb-3">
           Create New Vault
         </h2>
 
-        {isInitializing && (
-          <div className="flex items-center gap-3 text-sm px-3 py-2 rounded bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700">
-            <span className="inline-block h-4 w-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-            <span className="font-medium">Creating vault, please wait…</span>
-          </div>
-        )}
-
         {/* Directory */}
         <div className="space-y-2 max-w-[400px] mx-auto" style={{ opacity: isInitializing ? 0.6 : 1 }}>
           <label className="block text-sm">Directory</label>
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-2">
             <input
               type="text"
               value={pickedDir}
               readOnly
               placeholder="Select parent folder - vault will be created inside"
-              className="flex-1 rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-2 py-1 text-sm"
+              className="flex-1 rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 text-sm"
+              style={{ height: '25px', lineHeight: '20px', paddingTop: 0, paddingBottom: 0 }}
               disabled={isInitializing}
             />
             <button
               onClick={pickCreateDir}
-              className="px-4 py-1.5 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm disabled:opacity-60"
+              className="px-4 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm disabled:opacity-60"
+              style={{ height: '25px' }}
               disabled={isInitializing}
             >
               Browse
@@ -76,7 +85,8 @@ export default function VaultInitializer({
                 : ""
             }
             onChange={(e) => setVaultUnlockDate(new Date(e.target.value))}
-            className="w-full rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-2 py-1 text-sm"
+            className="w-full rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 text-sm"
+            style={{ height: '25px', lineHeight: '25px', paddingTop: 0, paddingBottom: 0 }}
             disabled={isInitializing}
           />
         </div>
@@ -84,34 +94,37 @@ export default function VaultInitializer({
         {/* Password */}
         <div className="space-y-2 max-w-[400px] mx-auto" style={{ opacity: isInitializing ? 0.6 : 1 }}>
           <label className="block text-sm">Password</label>
-          <div className="relative w-full h-9">
-            <input
-              type={showPassword ? "text" : "password"}
-              value={vaultPassword}
-              onChange={(e) => setVaultPassword(e.target.value)}
-              placeholder="Enter vault password"
-              className="w-full rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-2 pr-9 h-full text-sm"
-              autoComplete="new-password"
-              disabled={isInitializing}
-            />
-          </div>
+          <input
+            type={showPassword ? "text" : "password"}
+            value={vaultPassword}
+            onChange={(e) => setVaultPassword(e.target.value)}
+            placeholder="Enter vault password"
+            className="w-full rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 text-sm"
+            style={{ height: '25px', lineHeight: '25px', paddingTop: 0, paddingBottom: 0 }}
+            autoComplete="new-password"
+            disabled={isInitializing}
+          />
         </div>
 
+        {/* Log output during vault creation */}
+        {log && (
+          <div className="max-w-[400px] mx-auto">
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded text-sm">
+              <pre className="text-blue-800 dark:text-blue-200 whitespace-pre-wrap font-mono max-h-32 overflow-y-auto">
+                {log}
+              </pre>
+            </div>
+          </div>
+        )}
+
         {/* Actions */}
-        <div className="flex justify-end gap-2 pt-2">
-          <button
-            onClick={() => setShowCreate(false)}
-            className="px-4 py-1.5 border rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-sm disabled:opacity-60"
-            disabled={isInitializing}
-          >
-            Cancel
-          </button>
+        <div className="flex justify-end max-w-[400px] mx-auto" style={{ marginTop: '0.5rem' }}>
           <button
             onClick={handleCreate}
-            className="px-4 py-1.5 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm disabled:opacity-60"
+            className="px-6 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm disabled:opacity-60"
             disabled={isInitializing}
           >
-            Create
+            {isInitializing ? "Creating..." : "Create"}
           </button>
         </div>
       </div>

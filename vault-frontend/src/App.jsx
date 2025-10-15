@@ -301,18 +301,18 @@ export default function App() {
               </svg>
             </div>
 
-            <h1 className="text-4xl font-semibold mt-6">Time Vault</h1>
+            <h1 className="text-5xl font-bold mt-6">Time Vault</h1>
 
-            <div className="mt-10 flex justify-center gap-4">
+            <div className="mt-10 flex justify-center gap-6">
               <button
                 onClick={openExistingVault}
-                className="px-6 py-3 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700"
+                className="px-8 py-4 bg-indigo-600 text-white text-lg rounded-lg shadow hover:bg-indigo-700"
               >
                 Open Existing Vault
               </button>
               <button
                 onClick={() => setShowCreate(true)}
-                className="px-6 py-3 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700"
+                className="px-8 py-4 bg-indigo-600 text-white text-lg rounded-lg shadow hover:bg-indigo-700"
               >
                 Create New Vault
               </button>
@@ -350,6 +350,7 @@ export default function App() {
           showPassword={showPassword}
           setShowPassword={setShowPassword}
           isInitializing={isInitializing}
+          log={log}
         />
       )}
 
@@ -365,7 +366,7 @@ export default function App() {
         />
       )}
 
-      {log && (
+      {log && !showCreate && (
         <div className="mt-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-md text-sm overflow-y-auto max-h-48">
           <pre>{log}</pre>
         </div>

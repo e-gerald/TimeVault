@@ -23,7 +23,7 @@ export default function Header({ visible = true }) {
         onClick={onToggle}
         title="Toggle Dark / Light Mode"
         className="p-2 rounded-full transition-all shadow-sm hover:shadow-md hover:scale-105
-                   bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-200 dark:border-gray-700"
+                   bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm"
         style={{ fontSize: 18 }}
       >
         {dark ? "☀️" : "🌙"}
