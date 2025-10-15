@@ -1,0 +1,127 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  overflow: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+:root {
+  --bg: #fafafa;
+  --fg: #1a1a1a;
+  --input-bg: rgba(255,255,255,0.7);
+  --input-fg: #1a1a1a;
+}
+
+.dark {
+  --bg: #0f0f15;
+  --fg: #f1f1f1;
+  --input-bg: rgba(40,40,60,0.7);
+  --input-fg: #f1f1f1;
+}
+
+/* Only apply custom styles to buttons without Tailwind classes */
+button:not([class*="bg-"]):not([class*="text-"]):not([class*="px-"]):not([class*="py-"]) {
+  border-radius: 0.6rem;
+  padding: 0.4rem 1rem;
+  backdrop-filter: blur(8px);
+  background: rgba(255,255,255,0.35);
+  color: inherit;
+  border: 1px solid rgba(255,255,255,0.3);
+  transition: all 0.2s ease;
+}
+.dark button:not([class*="bg-"]):not([class*="text-"]):not([class*="px-"]):not([class*="py-"]) {
+  background: rgba(60,60,80,0.45);
+  border-color: rgba(255,255,255,0.1);
+}
+button:not([class*="bg-"]):not([class*="text-"]):not([class*="px-"]):not([class*="py-"]):hover {
+  transform: scale(1.02);
+  background: rgba(255,255,255,0.55);
+}
+.dark button:not([class*="bg-"]):not([class*="text-"]):not([class*="px-"]):not([class*="py-"]):hover {
+  background: rgba(80,80,100,0.6);
+}
+
+/* Only apply custom styles to inputs without Tailwind classes */
+input:not([class*="bg-"]):not([class*="text-"]):not([class*="px-"]):not([class*="py-"]), 
+select:not([class*="bg-"]):not([class*="text-"]):not([class*="px-"]):not([class*="py-"]), 
+textarea:not([class*="bg-"]):not([class*="text-"]):not([class*="px-"]):not([class*="py-"]) {
+  background: var(--input-bg);
+  color: var(--input-fg);
+  border: 1px solid rgba(150,150,150,0.3);
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.6rem;
+  width: 100%;
+  outline: none;
+  font-size: 0.875rem;
+}
+input::placeholder {
+  color: rgba(0,0,0,0.5);
+}
+.dark input::placeholder {
+  color: rgba(255,255,255,0.5);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(14px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.modal-window {
+  width: 480px;
+  max-width: 95vw;
+  background-color: #fff;
+  color: var(--fg);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  border: 1px solid #ddd;
+}
+.dark .modal-window {
+  background: rgba(25,25,35,0.6);
+}
+
+/* PASSWORD ICON ALIGNMENT */
+.modal-window .relative {
+  display: flex;
+  align-items: center; /* aligns icon vertically with text */
+}
+
+.modal-window .relative input[type="password"],
+.modal-window .relative input[type="text"] {
+  flex: 1;
+  padding-right: 2.5rem; /* space for icon */
+  height: auto;
+  line-height: normal;
+}
+
+.modal-window .relative span {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  z-index: 10;
+  font-size: 0.875rem;
+}
+
+/* DATETIME INPUT FIX */
+.modal-window input[type="datetime-local"] {
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+  font-size: 0.875rem;
+  height: auto;
+}

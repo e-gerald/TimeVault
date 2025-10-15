@@ -1,0 +1,17 @@
+{
+  "name": "vault-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@tauri-apps/api": "^2.8.0",
+    "@tauri-apps/cli": "^2.7.2"
+  },
+  "dependencies": {
+    "lucide-react": "^0.544.0"
+  },
+  "scripts": {
+    "tauri:dev": "cargo tauri dev",
+    "tauri:build": "cargo tauri build"
+  }
+}

@@ -1,0 +1,27 @@
+
+/* styles/datetimepicker.css - minimal styles to work with react-datetime-picker */
+.react-datetime-picker {
+  border-radius: 0.5rem;
+  background-color: transparent;
+  padding: 0.25rem;
+}
+.react-datetime-picker__wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.react-datetime-picker__inputGroup__input {
+  background: transparent;
+  border: 1px solid rgba(0,0,0,0.08);
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+}
+.react-datetime-picker__calendar {
+  z-index: 50;
+}
+/* dark mode support */
+.dark .react-datetime-picker__inputGroup__input {
+  background: #1f2937;
+  color: #e5e7eb;
+  border-color: rgba(255,255,255,0.06);
+}
