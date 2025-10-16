@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import PasswordModal from "./PasswordModal";
 
 export default function Dashboard({ 
@@ -18,6 +18,14 @@ export default function Dashboard({
   const [selectedFile, setSelectedFile] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [wiggling, setWiggling] = useState(null);
+  const logContainerRef = useRef(null);
+
+  // Auto-scroll to bottom when log updates
+  useEffect(() => {
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [log]);
 
   const formatDate = (v) => {
     if (v === null || v === undefined || v === "—") return "—";
@@ -86,7 +94,7 @@ export default function Dashboard({
     <div className="min-h-screen bg-gray-50 dark:bg-[#0f0f15]">
       {/* Header */}
       <div className="bg-white dark:bg-[#1a1a24] border-b border-gray-200 dark:border-gray-700">
-        <div className="px-6 py-4">
+        <div className="px-8 py-5 max-w-7xl mx-auto">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -94,19 +102,8 @@ export default function Dashboard({
               </h1>
             </div>
             
-            {/* Top-right controls */}
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={handleRefreshStatus}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Refresh Status
-              </button>
-              
-              {/* Exit button */}
+            {/* Exit button */}
+            <div className="flex items-center">
               <button
                 onClick={onExit}
                 className="inline-flex items-center px-4 py-2 border border-red-300 dark:border-red-600 rounded-md text-sm font-medium text-red-600 dark:text-red-400 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -119,11 +116,24 @@ export default function Dashboard({
               </button>
             </div>
           </div>
+          
+          {/* Refresh Status Button - on new line inside header */}
+          <div className="mt-4">
+            <button
+              onClick={handleRefreshStatus}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh Status
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="px-6 py-6">
+      <div className="px-8 py-6 max-w-7xl mx-auto" style={{ paddingBottom: log ? '12rem' : '1.5rem' }}>
         {/* Files Table */}
         <div className="bg-white dark:bg-[#1a1a24] shadow rounded-lg overflow-hidden mb-6">
           <div className="overflow-x-auto max-h-96 overflow-y-auto">
@@ -208,22 +218,25 @@ export default function Dashboard({
           </button>
         </div>
 
-        {/* Activity Log */}
-        {log && (
-          <div className="mt-6 bg-white dark:bg-[#1a1a24] shadow rounded-lg overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+      </div>
+
+      {/* Footer - Activity Log */}
+      {log && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-[#1a1a24] border-t border-gray-200 dark:border-gray-700 shadow-lg">
+          <div className="px-8 py-3 max-w-7xl mx-auto">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                 Activity Log
               </h3>
             </div>
-            <div className="px-6 py-4">
-              <pre className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-mono bg-gray-50 dark:bg-gray-800 p-4 rounded-md max-h-48 overflow-auto">
+            <div ref={logContainerRef} className="overflow-y-auto" style={{ maxHeight: '7.5rem' }}>
+              <pre className="text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-mono">
                 {log}
               </pre>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Password Modal */}
       <PasswordModal
