@@ -66,8 +66,10 @@ export default function App() {
   // Vault helpers
   async function refreshVaultStatus(path) {
     try {
+      appendLog("Verifying saved files...");
       const res = await tauriInvoke("status", { vaultPath: path });
       setFiles(Array.isArray(res) ? res : []);
+      appendLog("Files verified successfully");
     } catch (e) {
       console.error("refreshVaultStatus", e);
       appendLog("Error refreshing status: " + (e?.message || e));
@@ -76,12 +78,14 @@ export default function App() {
 
   async function refreshVaultInfo(path) {
     try {
+      appendLog("Verifying date and time...");
       const info = await tauriInvoke("vault_info", { vaultDir: path });
       if (info)
         setVaultInfo({
           created: info.created || "—",
           last_server_time: info.last_server_time || "—",
         });
+      appendLog("Date and time verified");
     } catch (e) {
       console.error("refreshVaultInfo", e);
       appendLog("Error refreshing info: " + (e?.message || e));
@@ -136,10 +140,9 @@ export default function App() {
     }
   };
 
-  // ✅ Initialize vault (Rust arg names preserved)
+  // ✅ Initialize vault (No unlock date needed - only files have unlock dates)
   const initializeVault = async (vaultDir) => {
     if (!vaultDir) return alert("Choose a directory");
-    if (!vaultUnlockDate) return alert("Pick unlock date/time");
     if (!vaultPassword) return alert("Enter password");
 
     if (
@@ -158,17 +161,19 @@ export default function App() {
       const vaultPath = vaultDir.replace(/[/\\]$/, "") + (vaultDir.includes("/") ? "/" : "\\") + "MyTimeVault";
       appendLog("Creating vault at: " + vaultPath);
 
-      const unlockUnix = Math.floor(vaultUnlockDate.getTime() / 1000);
+      // Use a far future date as placeholder since backend expects it
+      const placeholderUnlock = Math.floor(new Date('2099-12-31').getTime() / 1000);
       await tauriInvoke("init_vault_tauri", {
         vaultDir: vaultPath,
         password: vaultPassword,
-        vaultUnlockDate: unlockUnix,
+        vaultUnlockDate: placeholderUnlock,
       });
 
       appendLog("Vault initialized at " + vaultPath);
       setVaultPath(vaultPath);
       setShowCreate(false);
       setScreen("dashboard");
+      setLog(""); // Clear log when entering dashboard
 
       await refreshVaultStatus(vaultPath);
       await refreshVaultInfo(vaultPath);
@@ -181,14 +186,13 @@ export default function App() {
   };
 
   // Add file to vault
-  const addFile = async () => {
+  const addFile = async (password) => {
     if (!vaultPath) return alert("Open or create a vault first");
     if (!pickedFile) return alert("Pick a file to add");
     if (!fileUnlockDate) return alert("Pick file unlock date");
+    if (!password) return;
 
     const unlockUnix = Math.floor(fileUnlockDate.getTime() / 1000);
-    const password = prompt("Enter vault password:");
-    if (!password) return;
 
     try {
       appendLog("Encrypting and adding file...");
@@ -199,62 +203,78 @@ export default function App() {
         fileUnlockDate: unlockUnix,
       });
 
-      appendLog("File added");
-      setShowAddFile(false);
+      appendLog(`File added: ${pickedFile.split(/[\\/]/).pop()}`);
+      setPickedFile("");
+      setFileUnlockDate(null);
       await refreshVaultStatus(vaultPath);
     } catch (e) {
       console.error("addFile", e);
       appendLog("Error adding file: " + (e?.message || e));
+      throw e; // Re-throw to handle in UI
     }
   };
 
   // Unlock single vault file
-  const unlockSingle = async (outDir) => {
-    if (!vaultPath) return;
-    const password = prompt("Enter vault password:");
-    if (!password) return;
+  const unlockSingle = async (file, password) => {
+    if (!vaultPath || !password) return;
 
     try {
-      appendLog("Extracting unlocked files to " + outDir);
+      // Create "Unlocked Files" directory in the vault directory
+      const vaultDir = vaultPath.substring(0, vaultPath.lastIndexOf(/[\\/]/.test(vaultPath) ? (vaultPath.includes('/') ? '/' : '\\') : '/'));
+      const unlockedDir = vaultDir + (vaultPath.includes('/') ? '/' : '\\') + 'Unlocked Files';
+      
+      appendLog(`Unlocking file: ${file.name || file.filename}...`);
       const result = await tauriInvoke("unlock_vault_tauri", {
         vaultDir: vaultPath,
-        outDir: outDir,
+        outDir: unlockedDir,
         password,
       });
       appendLog(result);
+      appendLog(`File unlocked to: ${unlockedDir}`);
       await refreshVaultStatus(vaultPath);
     } catch (e) {
       console.error("unlockSingle", e);
-      appendLog("Error unlocking: " + (e?.message || e));
+      appendLog("Error unlocking file: " + (e?.message || e));
+      throw e; // Re-throw to handle in UI
     }
   };
 
-  // Unlock all files in vault
-  const unlockAll = async () => {
-    if (!vaultPath) return alert("Open or create a vault first");
+  // Unlock all files in vault (saves to "Unlocked Files" folder)
+  const unlockAll = async (password) => {
+    if (!vaultPath || !password) return;
+
     try {
-      const outDir = await tauriOpen({ directory: true, multiple: false });
-      const chosen = Array.isArray(outDir) ? outDir[0] : outDir;
-      if (!chosen) return;
+      // Create "Unlocked Files" directory in the vault's parent directory
+      const vaultDir = vaultPath.substring(0, vaultPath.lastIndexOf(/[\\/]/.test(vaultPath) ? (vaultPath.includes('/') ? '/' : '\\') : '/'));
+      const unlockedDir = vaultDir + (vaultPath.includes('/') ? '/' : '\\') + 'Unlocked Files';
 
-      const password = prompt("Enter vault password:");
-      if (!password) return;
-
-      appendLog("Unlocking vault...");
+      appendLog("Unlocking all eligible files...");
+      appendLog(`Output directory: ${unlockedDir}`);
+      
       const result = await tauriInvoke("unlock_vault_tauri", {
         vaultDir: vaultPath,
-        outDir: chosen,
+        outDir: unlockedDir,
         password,
       });
       appendLog(result);
-      appendLog("Unlock complete!");
+      appendLog("Vault unlock complete!");
 
       await refreshVaultStatus(vaultPath);
       await refreshVaultInfo(vaultPath);
     } catch (e) {
       console.error("unlockAll", e);
-      appendLog("Error unlocking all: " + (e?.message || e));
+      appendLog("Error unlocking vault: " + (e?.message || e));
+      throw e; // Re-throw to handle in UI
     }
+  };
+
+  // Exit vault and return to splash screen
+  const exitVault = () => {
+    setVaultPath("");
+    setFiles([]);
+    setLog("");
+    setVaultInfo({ created: "—", last_server_time: "—" });
+    setScreen("splash");
   };
 
   const formatDate = (v) => {
@@ -303,7 +323,7 @@ export default function App() {
 
             <h1 className="text-5xl font-bold mt-6">Time Vault</h1>
 
-            <div className="mt-10 flex justify-center gap-6">
+            <div className="mt-10 flex justify-center gap-8" style={{ gap: '2rem' }}>
               <button
                 onClick={openExistingVault}
                 className="px-8 py-4 bg-indigo-600 text-white text-lg rounded-lg shadow hover:bg-indigo-700"
@@ -331,6 +351,7 @@ export default function App() {
             setShowAddFile={setShowAddFile}
             unlockAll={unlockAll}
             unlockSingle={unlockSingle}
+            onExit={exitVault}
           />
         )}
       </main>

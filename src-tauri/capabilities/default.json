@@ -12,7 +12,9 @@
     "core:menu:default",
     "core:tray:default",
     "core:window:allow-set-title",
+    "core:webview:default",
     "dialog:allow-open",
-    "dialog:allow-save"
+    "dialog:allow-save",
+    "dialog:allow-message"
   ]
 }

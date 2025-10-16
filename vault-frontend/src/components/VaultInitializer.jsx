@@ -46,7 +46,7 @@ export default function VaultInitializer({
           ×
         </button>
 
-        <h2 className="text-xl font-semibold text-center mb-3">
+        <h2 className="text-xl font-semibold text-center mb-3 dark:text-gray-100">
           Create New Vault
         </h2>
 
@@ -58,7 +58,7 @@ export default function VaultInitializer({
               type="text"
               value={pickedDir}
               readOnly
-              placeholder="Select parent folder - vault will be created inside"
+              placeholder="Select parent folder - Vault will be created inside"
               className="flex-1 rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 text-sm"
               style={{ height: '25px', lineHeight: '20px', paddingTop: 0, paddingBottom: 0 }}
               disabled={isInitializing}
@@ -74,32 +74,15 @@ export default function VaultInitializer({
           </div>
         </div>
 
-        {/* Unlock Date */}
-        <div className="space-y-2 max-w-[400px] mx-auto" style={{ opacity: isInitializing ? 0.6 : 1 }}>
-          <label className="block text-sm">Unlock Date and Time</label>
-          <input
-            type="datetime-local"
-            value={
-              vaultUnlockDate
-                ? new Date(vaultUnlockDate).toISOString().slice(0, 16)
-                : ""
-            }
-            onChange={(e) => setVaultUnlockDate(new Date(e.target.value))}
-            className="w-full rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 text-sm"
-            style={{ height: '25px', lineHeight: '25px', paddingTop: 0, paddingBottom: 0 }}
-            disabled={isInitializing}
-          />
-        </div>
-
         {/* Password */}
         <div className="space-y-2 max-w-[400px] mx-auto" style={{ opacity: isInitializing ? 0.6 : 1 }}>
-          <label className="block text-sm">Password</label>
+          <label className="block text-sm dark:text-gray-200">Password</label>
           <input
             type={showPassword ? "text" : "password"}
             value={vaultPassword}
             onChange={(e) => setVaultPassword(e.target.value)}
-            placeholder="Enter vault password"
-            className="w-full rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 text-sm"
+            placeholder="Create vault password"
+            className="w-full rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 dark:text-gray-100 px-3 text-sm"
             style={{ height: '25px', lineHeight: '25px', paddingTop: 0, paddingBottom: 0 }}
             autoComplete="new-password"
             disabled={isInitializing}

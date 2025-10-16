@@ -1,5 +1,5 @@
-import React from "react";
-import FileList from "./FileList";
+import React, { useState } from "react";
+import PasswordModal from "./PasswordModal";
 
 export default function Dashboard({ 
   vaultPath, 
@@ -10,8 +10,15 @@ export default function Dashboard({
   refreshVaultInfo, 
   setShowAddFile, 
   unlockAll, 
-  unlockSingle 
+  unlockSingle,
+  onExit 
 }) {
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordAction, setPasswordAction] = useState(null); // 'unlock-file' or 'unlock-vault'
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [wiggling, setWiggling] = useState(null);
+
   const formatDate = (v) => {
     if (v === null || v === undefined || v === "—") return "—";
     if (typeof v === "number") return new Date(v * 1000).toLocaleString();
@@ -33,40 +40,83 @@ export default function Dashboard({
     }
   };
 
+  const handleRefreshStatus = async () => {
+    if (vaultPath) {
+      await refreshVaultStatus(vaultPath);
+      await refreshVaultInfo(vaultPath);
+    }
+  };
+
+  const handleLockedClick = (fileIndex) => {
+    setWiggling(fileIndex);
+    setTimeout(() => setWiggling(null), 500);
+  };
+
+  const handleUnlockFile = (file) => {
+    setSelectedFile(file);
+    setPasswordAction('unlock-file');
+    setShowPasswordModal(true);
+  };
+
+  const handleUnlockVault = () => {
+    setPasswordAction('unlock-vault');
+    setShowPasswordModal(true);
+  };
+
+  const handlePasswordSubmit = async (password) => {
+    setIsProcessing(true);
+    
+    try {
+      if (passwordAction === 'unlock-file') {
+        await unlockSingle(selectedFile, password);
+      } else if (passwordAction === 'unlock-vault') {
+        await unlockAll(password);
+      }
+      setShowPasswordModal(false);
+      setSelectedFile(null);
+      setPasswordAction(null);
+    } catch (error) {
+      console.error('Password action failed:', error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header - matches wireframe exactly */}
-      <div className="bg-white border-b border-gray-200">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0f0f15]">
+      {/* Header */}
+      <div className="bg-white dark:bg-[#1a1a24] border-b border-gray-200 dark:border-gray-700">
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-lg font-semibold text-gray-900">
+              <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                 Vault: {vaultPath}
               </h1>
-              <p className="text-sm text-gray-600 mt-1">
-                Unlocks: {formatDate(vaultInfo?.unlock_date) || "—"}
-              </p>
             </div>
+            
+            {/* Top-right controls */}
             <div className="flex items-center space-x-3">
               <button
-                onClick={() => {
-                  if (vaultPath) {
-                    refreshVaultStatus(vaultPath);
-                    refreshVaultInfo(vaultPath);
-                  }
-                }}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                onClick={handleRefreshStatus}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 Refresh Status
               </button>
-              <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center">
-                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              
+              {/* Exit button */}
+              <button
+                onClick={onExit}
+                className="inline-flex items-center px-4 py-2 border border-red-300 dark:border-red-600 rounded-md text-sm font-medium text-red-600 dark:text-red-400 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20"
+                title="Exit Vault"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                 </svg>
-              </div>
+                Exit
+              </button>
             </div>
           </div>
         </div>
@@ -74,54 +124,63 @@ export default function Dashboard({
 
       {/* Main Content */}
       <div className="px-6 py-6">
-        {/* Files Table - matches wireframe exactly */}
-        <div className="bg-white shadow rounded-lg overflow-hidden mb-6">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+        {/* Files Table */}
+        <div className="bg-white dark:bg-[#1a1a24] shadow rounded-lg overflow-hidden mb-6">
+          <div className="overflow-x-auto max-h-96 overflow-y-auto">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     File Name
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Unlock Time
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Unlock Date
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Action
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-[#1a1a24] divide-y divide-gray-200 dark:divide-gray-700">
                 {Array.isArray(files) && files.length > 0 ? (
                   files.map((file, index) => (
                     <tr key={index}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                         {file.name || file.filename || `File ${index + 1}`}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                         {formatDate(file.unlock_time || file.unlockDate)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
                         {file.unlocked ? (
                           <button
-                            onClick={() => unlockSingle && unlockSingle(file)}
-                            className="text-blue-600 hover:text-blue-900 font-medium"
+                            onClick={() => handleUnlockFile(file)}
+                            className="inline-flex items-center px-4 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition-colors"
                           >
+                            <svg className="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                            </svg>
                             Open
                           </button>
                         ) : (
-                          <div className="flex items-center">
-                            <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                          <button
+                            onClick={() => handleLockedClick(index)}
+                            className={`inline-flex items-center px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium cursor-not-allowed transition-all ${
+                              wiggling === index ? 'animate-wiggle' : ''
+                            }`}
+                          >
+                            <svg className="w-3 h-3 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                             </svg>
-                          </div>
+                            Locked
+                          </button>
                         )}
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="3" className="px-6 py-4 text-center text-sm text-gray-500">
+                    <td colSpan="3" className="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
                       No files in vault
                     </td>
                   </tr>
@@ -131,44 +190,65 @@ export default function Dashboard({
           </div>
         </div>
 
-        {/* Action Buttons - matches wireframe exactly */}
-        <div className="flex space-x-4">
+        {/* Action Buttons */}
+        <div className="flex gap-10 max-w-2xl">
           <button
             onClick={() => setShowAddFile(true)}
-            className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+            className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold rounded-lg text-white bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-xl border-2 border-blue-700 hover:border-blue-800 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
           >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
+            <span className="text-base mr-1.5 font-bold">+</span>
             Add New File
           </button>
           <button
-            onClick={unlockAll}
-            className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+            onClick={handleUnlockVault}
+            className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold rounded-lg text-white bg-green-600 hover:bg-green-700 shadow-md hover:shadow-xl border-2 border-green-700 hover:border-green-800 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
           >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
-            </svg>
+            <span className="text-xs mr-1.5">🔓</span>
             Unlock Vault
           </button>
         </div>
 
-        {/* Activity Log - only show if there's log content */}
+        {/* Activity Log */}
         {log && (
-          <div className="mt-6 bg-white shadow rounded-lg overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">
+          <div className="mt-6 bg-white dark:bg-[#1a1a24] shadow rounded-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
                 Activity Log
               </h3>
             </div>
             <div className="px-6 py-4">
-              <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono bg-gray-50 p-4 rounded-md max-h-48 overflow-auto">
+              <pre className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-mono bg-gray-50 dark:bg-gray-800 p-4 rounded-md max-h-48 overflow-auto">
                 {log}
               </pre>
             </div>
           </div>
         )}
       </div>
+
+      {/* Password Modal */}
+      <PasswordModal
+        isOpen={showPasswordModal}
+        onClose={() => {
+          setShowPasswordModal(false);
+          setSelectedFile(null);
+          setPasswordAction(null);
+        }}
+        onSubmit={handlePasswordSubmit}
+        title={passwordAction === 'unlock-file' ? 'Unlock File' : 'Unlock Vault'}
+        isProcessing={isProcessing}
+      />
+
+      {/* Wiggle Animation */}
+      <style>{`
+        @keyframes wiggle {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-4px) rotate(-2deg); }
+          75% { transform: translateX(4px) rotate(2deg); }
+        }
+        .animate-wiggle {
+          animation: wiggle 0.3s ease-in-out;
+        }
+      `}</style>
     </div>
   );
 }
