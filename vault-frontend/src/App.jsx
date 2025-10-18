@@ -32,6 +32,13 @@ export default function App() {
   const [showPassword, setShowPassword] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
 
+  // Auto-open modal when file is picked (only when coming from dashboard)
+  useEffect(() => {
+    if (pickedFile && screen === "dashboard" && !showAddFile) {
+      setShowAddFile(true);
+    }
+  }, [pickedFile, screen, showAddFile]);
+
   // Refs
   const dropRef = useRef();
 
@@ -207,6 +214,7 @@ export default function App() {
       setPickedFile("");
       setFileUnlockDate(null);
       await refreshVaultStatus(vaultPath);
+      await refreshVaultInfo(vaultPath); // Update server time after adding file
     } catch (e) {
       console.error("addFile", e);
       appendLog("Error adding file: " + (e?.message || e));
@@ -299,6 +307,7 @@ export default function App() {
   };
 
   return (
+    <>
     <div
       className={`min-h-screen transition-colors duration-300 ${
         dark ? "bg-[#0f0f15] text-gray-100" : "bg-[#fafafa] text-gray-900"
@@ -352,46 +361,49 @@ export default function App() {
             unlockAll={unlockAll}
             unlockSingle={unlockSingle}
             onExit={exitVault}
+            pickFileForAdd={pickFileForAdd}
           />
         )}
       </main>
 
-      {showCreate && (
-        <VaultInitializer
-          setShowCreate={setShowCreate}
-          dropRef={dropRef}
-          pickedDir={pickedDir}
-          setPickedDir={setPickedDir}
-          vaultUnlockDate={vaultUnlockDate}
-          setVaultUnlockDate={setVaultUnlockDate}
-          vaultPassword={vaultPassword}
-          setVaultPassword={setVaultPassword}
-          initializeVault={initializeVault}
-          pickCreateDir={pickCreateDir}
-          showPassword={showPassword}
-          setShowPassword={setShowPassword}
-          isInitializing={isInitializing}
-          log={log}
-        />
-      )}
-
-      {showAddFile && (
-        <AddFileModal
-          setShowAddFile={setShowAddFile}
-          pickedFile={pickedFile}
-          setPickedFile={setPickedFile}
-          fileUnlockDate={fileUnlockDate}
-          setFileUnlockDate={setFileUnlockDate}
-          addFile={addFile}
-          pickFileForAdd={pickFileForAdd}
-        />
-      )}
-
-      {log && !showCreate && (
+      {log && !showCreate && screen !== "dashboard" && (
         <div className="mt-6 p-4 bg-gray-100 dark:bg-gray-800 rounded-md text-sm overflow-y-auto max-h-48">
           <pre>{log}</pre>
         </div>
       )}
     </div>
+
+    {/* Modals - Render outside main app div for proper z-index */}
+    {showCreate && (
+      <VaultInitializer
+        setShowCreate={setShowCreate}
+        dropRef={dropRef}
+        pickedDir={pickedDir}
+        setPickedDir={setPickedDir}
+        vaultUnlockDate={vaultUnlockDate}
+        setVaultUnlockDate={setVaultUnlockDate}
+        vaultPassword={vaultPassword}
+        setVaultPassword={setVaultPassword}
+        initializeVault={initializeVault}
+        pickCreateDir={pickCreateDir}
+        showPassword={showPassword}
+        setShowPassword={setShowPassword}
+        isInitializing={isInitializing}
+        log={log}
+      />
+    )}
+
+    {showAddFile && (
+      <AddFileModal
+        setShowAddFile={setShowAddFile}
+        pickedFile={pickedFile}
+        setPickedFile={setPickedFile}
+        fileUnlockDate={fileUnlockDate}
+        setFileUnlockDate={setFileUnlockDate}
+        addFile={addFile}
+        pickFileForAdd={pickFileForAdd}
+      />
+    )}
+    </>
   );
 }

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import PasswordModal from "./PasswordModal";
 
 export default function AddFileModal({
@@ -38,10 +39,34 @@ export default function AddFileModal({
     }
   };
 
-  return (
+  const modalContent = (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
-        <div className="bg-white dark:bg-[#0f0f15] rounded-2xl p-6 w-[480px] max-w-[90vw] border border-gray-200 dark:border-gray-700 relative">
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]"
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 99999,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
+      >
+        <div 
+          className="bg-white dark:bg-[#0f0f15] rounded-2xl p-6 w-[480px] max-w-[90vw] border border-gray-200 dark:border-gray-700 relative"
+          style={{
+            backgroundColor: 'white',
+            padding: '24px',
+            borderRadius: '16px',
+            minHeight: '200px',
+            position: 'relative',
+            zIndex: 100000
+          }}
+        >
           {/* Close button */}
           <button
             onClick={() => setShowAddFile(false)}
@@ -130,4 +155,6 @@ export default function AddFileModal({
       />
     </>
   );
+
+  return createPortal(modalContent, document.body);
 }

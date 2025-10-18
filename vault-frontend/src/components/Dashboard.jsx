@@ -11,7 +11,8 @@ export default function Dashboard({
   setShowAddFile, 
   unlockAll, 
   unlockSingle,
-  onExit 
+  onExit,
+  pickFileForAdd 
 }) {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordAction, setPasswordAction] = useState(null); // 'unlock-file' or 'unlock-vault'
@@ -19,6 +20,43 @@ export default function Dashboard({
   const [isProcessing, setIsProcessing] = useState(false);
   const [wiggling, setWiggling] = useState(null);
   const logContainerRef = useRef(null);
+
+  // Helper to check if file is unlocked based on server time
+  const isFileUnlocked = (file) => {
+    const serverTime = vaultInfo?.last_server_time;
+    const fileUnlockDate = file.file_unlock_date || file.unlock_time || file.unlockDate;
+    
+    console.log("Checking unlock status:", {
+      serverTime,
+      fileUnlockDate,
+      fileName: file.filename || file.name,
+      vaultInfo
+    });
+    
+    if (!serverTime || !fileUnlockDate) {
+      console.log("Missing data - serverTime or fileUnlockDate is null");
+      return false;
+    }
+    
+    // Parse server time (could be unix timestamp or ISO string)
+    const serverUnix = typeof serverTime === 'number' ? serverTime : 
+                       typeof serverTime === 'string' && /^\d+$/.test(serverTime.trim()) ? 
+                       parseInt(serverTime.trim()) : 
+                       Math.floor(new Date(serverTime).getTime() / 1000);
+    
+    // Parse file unlock date (unix timestamp)
+    const fileUnix = typeof fileUnlockDate === 'number' ? fileUnlockDate : parseInt(fileUnlockDate);
+    
+    console.log("Comparison:", {
+      serverUnix,
+      fileUnix,
+      serverDate: new Date(serverUnix * 1000).toLocaleString(),
+      fileDate: new Date(fileUnix * 1000).toLocaleString(),
+      isUnlocked: serverUnix >= fileUnix
+    });
+    
+    return serverUnix >= fileUnix;
+  };
 
   // Auto-scroll to bottom when log updates
   useEffect(() => {
@@ -94,11 +132,11 @@ export default function Dashboard({
     <div className="min-h-screen bg-gray-50 dark:bg-[#0f0f15]">
       {/* Header */}
       <div className="bg-white dark:bg-[#1a1a24] border-b border-gray-200 dark:border-gray-700">
-        <div className="px-8 py-5 max-w-7xl mx-auto">
+        <div className="px-12 py-5 max-w-7xl mx-auto">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Vault: {vaultPath}
+              <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100" title={vaultPath}>
+                Vault: {vaultPath.split(/[\\/]/).pop()}
               </h1>
             </div>
             
@@ -121,9 +159,9 @@ export default function Dashboard({
           <div className="mt-4">
             <button
               onClick={handleRefreshStatus}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
+              className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-xs font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
             >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
               Refresh Status
@@ -133,11 +171,12 @@ export default function Dashboard({
       </div>
 
       {/* Main Content */}
-      <div className="px-8 py-6 max-w-7xl mx-auto" style={{ paddingBottom: log ? '12rem' : '1.5rem' }}>
+      <div className="py-6 max-w-7xl mx-auto px-12" style={{ paddingBottom: log ? '12rem' : '1.5rem' }}>
         {/* Files Table */}
-        <div className="bg-white dark:bg-[#1a1a24] shadow rounded-lg overflow-hidden mb-6">
-          <div className="overflow-x-auto max-h-96 overflow-y-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <div className="flex justify-center mb-6">
+          <div className="bg-white dark:bg-[#1a1a24] shadow rounded-lg overflow-hidden">
+            <div className="overflow-x-auto max-h-96 overflow-y-auto">
+              <table className="w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -159,10 +198,10 @@ export default function Dashboard({
                         {file.name || file.filename || `File ${index + 1}`}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {formatDate(file.unlock_time || file.unlockDate)}
+                        {formatDate(file.file_unlock_date || file.unlock_time || file.unlockDate)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {file.unlocked ? (
+                        {isFileUnlocked(file) ? (
                           <button
                             onClick={() => handleUnlockFile(file)}
                             className="inline-flex items-center px-4 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition-colors"
@@ -198,45 +237,53 @@ export default function Dashboard({
               </tbody>
             </table>
           </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex gap-10 max-w-2xl">
-          <button
-            onClick={() => setShowAddFile(true)}
-            className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold rounded-lg text-white bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-xl border-2 border-blue-700 hover:border-blue-800 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
-          >
-            <span className="text-base mr-1.5 font-bold">+</span>
-            Add New File
-          </button>
-          <button
-            onClick={handleUnlockVault}
-            className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold rounded-lg text-white bg-green-600 hover:bg-green-700 shadow-md hover:shadow-xl border-2 border-green-700 hover:border-green-800 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
-          >
-            <span className="text-xs mr-1.5">🔓</span>
-            Unlock Vault
-          </button>
+          </div>
         </div>
 
       </div>
 
-      {/* Footer - Activity Log */}
-      {log && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-[#1a1a24] border-t border-gray-200 dark:border-gray-700 shadow-lg">
-          <div className="px-8 py-3 max-w-7xl mx-auto">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                Activity Log
-              </h3>
-            </div>
-            <div ref={logContainerRef} className="overflow-y-auto" style={{ maxHeight: '7.5rem' }}>
-              <pre className="text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-mono">
-                {log}
-              </pre>
-            </div>
+      {/* Footer - Action Buttons & Activity Log */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-[#1a1a24] border-t border-gray-200 dark:border-gray-700 shadow-lg mx-4 mb-4 rounded-lg">
+        <div className="py-4">
+          {/* Action Buttons */}
+          <div className="flex items-center justify-center gap-4 mb-4 px-12">
+            <button
+              onClick={async () => {
+                if (pickFileForAdd) {
+                  await pickFileForAdd();
+                }
+              }}
+              className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold rounded-lg text-white bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-xl border-2 border-blue-700 hover:border-blue-800 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <span className="text-base mr-1.5 font-bold">+</span>
+              Add New File
+            </button>
+            <button
+              onClick={handleUnlockVault}
+              className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold rounded-lg text-white bg-green-600 hover:bg-green-700 shadow-md hover:shadow-xl border-2 border-green-700 hover:border-green-800 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <span className="text-xs mr-1.5">🔓</span>
+              Unlock Vault
+            </button>
           </div>
+
+          {/* Activity Log */}
+          {log && (
+            <div className="px-12">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  Activity Log
+                </h3>
+              </div>
+              <div ref={logContainerRef} className="overflow-y-auto" style={{ maxHeight: '7.5rem' }}>
+                <pre className="text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-mono">
+                  {log}
+                </pre>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Password Modal */}
       <PasswordModal
