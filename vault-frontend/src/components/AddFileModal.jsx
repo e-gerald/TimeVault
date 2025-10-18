@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
-import PasswordModal from "./PasswordModal";
 
 export default function AddFileModal({
   setShowAddFile,
@@ -11,7 +10,8 @@ export default function AddFileModal({
   addFile,
   pickFileForAdd,
 }) {
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [password, setPassword] = useState("");
+  const [showPasswordField, setShowPasswordField] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleAdd = () => {
@@ -23,14 +23,18 @@ export default function AddFileModal({
       alert("Please set unlock date");
       return;
     }
-    setShowPasswordModal(true);
+    setShowPasswordField(true);
   };
 
-  const handlePasswordSubmit = async (password) => {
+  const handleConfirm = async () => {
+    if (!password) {
+      alert("Please enter vault password");
+      return;
+    }
     setIsProcessing(true);
     try {
       await addFile(password);
-      setShowPasswordModal(false);
+      setPassword("");
       setShowAddFile(false);
     } catch (error) {
       console.error('Add file failed:', error);
@@ -96,12 +100,14 @@ export default function AddFileModal({
                   readOnly
                   placeholder="Select a file to add"
                   className="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-gray-100 px-3 text-sm"
-                  style={{ height: '38px' }}
+                  style={{ height: '25px' }}
+                  disabled={showPasswordField}
                 />
                 <button
                   onClick={pickFileForAdd}
-                  className="px-4 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm"
-                  style={{ height: '38px' }}
+                  className="px-4 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm disabled:opacity-60"
+                  style={{ height: '25px' }}
+                  disabled={showPasswordField}
                 >
                   Browse
                 </button>
@@ -122,9 +128,31 @@ export default function AddFileModal({
                 }
                 onChange={(e) => setFileUnlockDate(new Date(e.target.value))}
                 className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 dark:text-gray-100 px-3 text-sm"
-                style={{ height: '38px' }}
+                style={{ height: '25px' }}
+                disabled={showPasswordField}
               />
             </div>
+
+            {/* Password Field - Shows after Add File is clicked */}
+            {showPasswordField && (
+              <div>
+                <label className="block text-sm font-medium mb-2 dark:text-gray-200">
+                  Vault Password
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleConfirm()}
+                  placeholder="Enter vault password"
+                  className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 dark:text-gray-100 px-3 text-sm"
+                  style={{ height: '25px', lineHeight: '25px', paddingTop: 0, paddingBottom: 0 }}
+                  autoComplete="current-password"
+                  disabled={isProcessing}
+                  autoFocus
+                />
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}
@@ -132,27 +160,29 @@ export default function AddFileModal({
             <button
               onClick={() => setShowAddFile(false)}
               className="px-5 py-2 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-800 text-sm dark:text-gray-200"
+              disabled={isProcessing}
             >
               Cancel
             </button>
-            <button
-              onClick={handleAdd}
-              className="px-5 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm"
-            >
-              Add File
-            </button>
+            {!showPasswordField ? (
+              <button
+                onClick={handleAdd}
+                className="px-5 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm"
+              >
+                Add File
+              </button>
+            ) : (
+              <button
+                onClick={handleConfirm}
+                className="px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm disabled:opacity-60"
+                disabled={isProcessing}
+              >
+                {isProcessing ? "Adding..." : "Confirm"}
+              </button>
+            )}
           </div>
         </div>
       </div>
-
-      {/* Password Modal */}
-      <PasswordModal
-        isOpen={showPasswordModal}
-        onClose={() => setShowPasswordModal(false)}
-        onSubmit={handlePasswordSubmit}
-        title="Add File to Vault"
-        isProcessing={isProcessing}
-      />
     </>
   );
 

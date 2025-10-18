@@ -88,17 +88,17 @@ async fn fetch_public_unixtime_with_retries() -> Result<(u64, String)> {
                 Ok(resp) => {
                     if resp.status().is_success() {
                         if let Ok(json) = resp.json::<serde_json::Value>().await {
-                            if *label == "timeapi.io" {
+                            if *label == "[Server 3]" {
                                 if let Some(dt) = json["dateTime"].as_str() {
                                     if let Ok(parsed) = DateTime::parse_from_rfc3339(dt) {
                                         return Ok((parsed.timestamp() as u64, label.to_string()));
                                     }
                                 }
-                            } else if *label == "worldtimeapi.org" || *label == "worldtimeapi.org-ip" {
+                            } else if *label == "[Server 1]" || *label == "[Server 4]" {
                                 if let Some(epoch) = json["unixtime"].as_i64() {
                                     return Ok((epoch as u64, label.to_string()));
                                 }
-                            } else if *label == "worldclockapi.com" {
+                            } else if *label == "[Server 2]" {
                                 // Try currentDateTime field first (RFC3339 format)
                                 if let Some(dt) = json["currentDateTime"].as_str() {
                                     if let Ok(parsed) = DateTime::parse_from_rfc3339(dt) {

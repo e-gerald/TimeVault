@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import PasswordModal from "./PasswordModal";
 
 export default function Dashboard({ 
   vaultPath, 
@@ -14,7 +13,8 @@ export default function Dashboard({
   onExit,
   pickFileForAdd 
 }) {
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [password, setPassword] = useState("");
+  const [showPasswordField, setShowPasswordField] = useState(false);
   const [passwordAction, setPasswordAction] = useState(null); // 'unlock-file' or 'unlock-vault'
   const [selectedFile, setSelectedFile] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -101,15 +101,26 @@ export default function Dashboard({
   const handleUnlockFile = (file) => {
     setSelectedFile(file);
     setPasswordAction('unlock-file');
-    setShowPasswordModal(true);
+    setShowPasswordField(true);
   };
 
   const handleUnlockVault = () => {
     setPasswordAction('unlock-vault');
-    setShowPasswordModal(true);
+    setShowPasswordField(true);
   };
 
-  const handlePasswordSubmit = async (password) => {
+  const handleCancelPassword = () => {
+    setPassword("");
+    setShowPasswordField(false);
+    setSelectedFile(null);
+    setPasswordAction(null);
+  };
+
+  const handleConfirmPassword = async () => {
+    if (!password) {
+      alert("Please enter vault password");
+      return;
+    }
     setIsProcessing(true);
     
     try {
@@ -118,7 +129,8 @@ export default function Dashboard({
       } else if (passwordAction === 'unlock-vault') {
         await unlockAll(password);
       }
-      setShowPasswordModal(false);
+      setPassword("");
+      setShowPasswordField(false);
       setSelectedFile(null);
       setPasswordAction(null);
     } catch (error) {
@@ -245,26 +257,68 @@ export default function Dashboard({
       {/* Footer - Action Buttons & Activity Log */}
       <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-[#1a1a24] border-t border-gray-200 dark:border-gray-700 shadow-lg mx-4 mb-4 rounded-lg">
         <div className="py-4">
-          {/* Action Buttons */}
+          {/* Action Buttons or Password Input */}
           <div className="flex items-center justify-center gap-4 mb-4 px-12">
-            <button
-              onClick={async () => {
-                if (pickFileForAdd) {
-                  await pickFileForAdd();
-                }
-              }}
-              className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold rounded-lg text-white bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-xl border-2 border-blue-700 hover:border-blue-800 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <span className="text-base mr-1.5 font-bold">+</span>
-              Add New File
-            </button>
-            <button
-              onClick={handleUnlockVault}
-              className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold rounded-lg text-white bg-green-600 hover:bg-green-700 shadow-md hover:shadow-xl border-2 border-green-700 hover:border-green-800 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <span className="text-xs mr-1.5">🔓</span>
-              Unlock Vault
-            </button>
+            {!showPasswordField ? (
+              <>
+                <button
+                  onClick={async () => {
+                    if (pickFileForAdd) {
+                      await pickFileForAdd();
+                    }
+                  }}
+                  className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold rounded-lg text-white bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-xl border-2 border-blue-700 hover:border-blue-800 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <span className="text-base mr-1.5 font-bold">+</span>
+                  Add New File
+                </button>
+                <button
+                  onClick={handleUnlockVault}
+                  className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold rounded-lg text-white bg-green-600 hover:bg-green-700 shadow-md hover:shadow-xl border-2 border-green-700 hover:border-green-800 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <span className="text-xs mr-1.5">🔓</span>
+                  Unlock Vault
+                </button>
+              </>
+            ) : (
+              <div className="flex items-center gap-3 max-w-md w-full">
+                <div className="flex-1">
+                  <label className="block text-xs font-medium mb-1 dark:text-gray-200">
+                    {passwordAction === 'unlock-file' 
+                      ? `Vault Password (to unlock ${selectedFile?.filename || selectedFile?.name || 'file'})` 
+                      : 'Vault Password (to unlock all files)'}
+                  </label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleConfirmPassword()}
+                    placeholder="Enter vault password"
+                    className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 dark:text-gray-100 px-3 text-sm"
+                    style={{ height: '32px', lineHeight: '32px', paddingTop: 0, paddingBottom: 0 }}
+                    autoComplete="current-password"
+                    disabled={isProcessing}
+                    autoFocus
+                  />
+                </div>
+                <div className="flex gap-2 pt-5">
+                  <button
+                    onClick={handleCancelPassword}
+                    disabled={isProcessing}
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-800 text-sm dark:text-gray-200 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleConfirmPassword}
+                    disabled={isProcessing}
+                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm disabled:opacity-50"
+                  >
+                    {isProcessing ? "Processing..." : "Confirm"}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Activity Log */}
@@ -284,19 +338,6 @@ export default function Dashboard({
           )}
         </div>
       </div>
-
-      {/* Password Modal */}
-      <PasswordModal
-        isOpen={showPasswordModal}
-        onClose={() => {
-          setShowPasswordModal(false);
-          setSelectedFile(null);
-          setPasswordAction(null);
-        }}
-        onSubmit={handlePasswordSubmit}
-        title={passwordAction === 'unlock-file' ? 'Unlock File' : 'Unlock Vault'}
-        isProcessing={isProcessing}
-      />
 
       {/* Wiggle Animation */}
       <style>{`
