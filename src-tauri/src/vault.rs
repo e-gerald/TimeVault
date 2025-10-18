@@ -69,8 +69,10 @@ fn derive_key(password: &str, salt: &[u8], mem_kib: u32, iters: u32, parallelism
 
 async fn fetch_public_unixtime_with_retries() -> Result<(u64, String)> {
     let endpoints = vec![
-        ("https://timeapi.io/api/Time/current/zone?timeZone=UTC", "timeapi.io"),
-        ("https://worldtimeapi.org/api/timezone/Etc/UTC", "worldtimeapi.org"),
+        ("https://worldtimeapi.org/api/timezone/Etc/UTC", "[Server 1]"),
+        ("http://worldclockapi.com/api/json/utc/now", "[Server 2]"),
+        ("https://timeapi.io/api/Time/current/zone?timeZone=UTC", "[Server 3]"),
+        ("https://worldtimeapi.org/api/ip", "[Server 4]"),
     ];
 
     let client = Client::builder()
@@ -92,9 +94,23 @@ async fn fetch_public_unixtime_with_retries() -> Result<(u64, String)> {
                                         return Ok((parsed.timestamp() as u64, label.to_string()));
                                     }
                                 }
-                            } else if *label == "worldtimeapi.org" {
+                            } else if *label == "worldtimeapi.org" || *label == "worldtimeapi.org-ip" {
                                 if let Some(epoch) = json["unixtime"].as_i64() {
                                     return Ok((epoch as u64, label.to_string()));
+                                }
+                            } else if *label == "worldclockapi.com" {
+                                // Try currentDateTime field first (RFC3339 format)
+                                if let Some(dt) = json["currentDateTime"].as_str() {
+                                    if let Ok(parsed) = DateTime::parse_from_rfc3339(dt) {
+                                        return Ok((parsed.timestamp() as u64, label.to_string()));
+                                    }
+                                }
+                                // Fallback to currentFileTime if available
+                                if let Some(filetime) = json["currentFileTime"].as_i64() {
+                                    // Windows FILETIME is 100-nanosecond intervals since Jan 1, 1601
+                                    // Convert to Unix timestamp: (filetime / 10000000) - 11644473600
+                                    let unix_time = (filetime / 10_000_000) - 11_644_473_600;
+                                    return Ok((unix_time as u64, label.to_string()));
                                 }
                             }
                         }
@@ -110,7 +126,7 @@ async fn fetch_public_unixtime_with_retries() -> Result<(u64, String)> {
         }
     }
 
-    Err(anyhow!("All public time endpoints failed"))
+    Err(anyhow!("All Server Time endpoints failed"))
 }
 
 /* -------------------------
@@ -342,6 +358,40 @@ pub fn vault_info(#[allow(non_snake_case)] vaultDir: String) -> Result<serde_jso
     let info = serde_json::json!({
         "created": meta.creation_ts,
         "last_server_time": meta.last_verified_time
+    });
+    
+    Ok(info)
+}
+
+#[tauri::command]
+pub async fn refresh_server_time(#[allow(non_snake_case)] vaultDir: String) -> Result<serde_json::Value, String> {
+    let vault_path = Path::new(&vaultDir);
+    let meta_path = vault_meta_path(vault_path);
+    
+    if !meta_path.exists() {
+        return Err("Vault metadata not found".to_string());
+    }
+    
+    let meta_raw = fs::read(&meta_path).map_err(|e| e.to_string())?;
+    let mut meta: VaultMetadata = serde_json::from_slice(&meta_raw).map_err(|e| e.to_string())?;
+    
+    // Fetch current server time
+    let (server_time, source) = fetch_public_unixtime_with_retries().await.map_err(|e| e.to_string())?;
+    
+    // Check for time regression
+    if meta.last_verified_time != 0 && server_time < meta.last_verified_time {
+        return Err("Public time regression detected - possible attack".to_string());
+    }
+    
+    // Update metadata with new server time
+    meta.last_verified_time = server_time;
+    fs::write(&meta_path, serde_json::to_vec_pretty(&meta).map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())?;
+    
+    let info = serde_json::json!({
+        "created": meta.creation_ts,
+        "last_server_time": meta.last_verified_time,
+        "time_source": source
     });
     
     Ok(info)

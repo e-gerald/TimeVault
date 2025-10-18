@@ -12,6 +12,7 @@ fn main() {
             vault::unlock_vault_tauri,
             vault::status,
             vault::vault_info,
+            vault::refresh_server_time,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

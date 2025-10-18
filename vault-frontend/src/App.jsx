@@ -86,16 +86,30 @@ export default function App() {
   async function refreshVaultInfo(path) {
     try {
       appendLog("Verifying date and time...");
-      const info = await tauriInvoke("vault_info", { vaultDir: path });
-      if (info)
+      // Fetch fresh server time from public time API
+      const info = await tauriInvoke("refresh_server_time", { vaultDir: path });
+      if (info) {
         setVaultInfo({
           created: info.created || "—",
           last_server_time: info.last_server_time || "—",
         });
-      appendLog("Date and time verified");
+        appendLog(`Date and time verified from ${info.time_source || 'server'}`);
+      }
     } catch (e) {
       console.error("refreshVaultInfo", e);
       appendLog("Error refreshing info: " + (e?.message || e));
+      // Fallback to cached time if refresh fails
+      try {
+        const cachedInfo = await tauriInvoke("vault_info", { vaultDir: path });
+        if (cachedInfo) {
+          setVaultInfo({
+            created: cachedInfo.created || "—",
+            last_server_time: cachedInfo.last_server_time || "—",
+          });
+        }
+      } catch (fallbackError) {
+        console.error("Fallback failed:", fallbackError);
+      }
     }
   }
 
