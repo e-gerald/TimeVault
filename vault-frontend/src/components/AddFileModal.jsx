@@ -7,12 +7,14 @@ export default function AddFileModal({
   setPickedFile,
   fileUnlockDate,
   setFileUnlockDate,
-  addFile,
+  verifyPassword,
+  onPasswordVerified,
   pickFileForAdd,
 }) {
   const [password, setPassword] = useState("");
   const [showPasswordField, setShowPasswordField] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
 
   const handleAdd = () => {
     if (!pickedFile) {
@@ -26,19 +28,53 @@ export default function AddFileModal({
     setShowPasswordField(true);
   };
 
+  const handleCancel = () => {
+    if (showPasswordField) {
+      // Go back one step: hide password field
+      setPassword("");
+      setShowPasswordField(false);
+      setStatusMessage("");
+      setIsProcessing(false);
+    } else {
+      // Close modal
+      setShowAddFile(false);
+    }
+  };
+
   const handleConfirm = async () => {
     if (!password) {
       alert("Please enter vault password");
       return;
     }
     setIsProcessing(true);
+    setStatusMessage("Verifying vault password...");
     try {
-      await addFile(password);
-      setPassword("");
-      setShowAddFile(false);
+      // Only verify password
+      await verifyPassword(password, (status) => {
+        setStatusMessage(status);
+      });
+      setStatusMessage("Password verified successfully");
+      
+      // Save password before clearing it
+      const verifiedPassword = password;
+      
+      // Close modal after a brief delay and pass password to parent
+      setTimeout(() => {
+        setShowAddFile(false);
+        setPassword("");
+        setShowPasswordField(false);
+        setStatusMessage("");
+        setIsProcessing(false);
+        // Notify parent that password was verified so it can proceed with file addition
+        if (onPasswordVerified) {
+          onPasswordVerified(verifiedPassword);
+        }
+      }, 500);
     } catch (error) {
-      console.error('Add file failed:', error);
-    } finally {
+      console.error('Password verification failed:', error);
+      // Show error message in status
+      const errorMsg = error?.message || error || "An error occurred";
+      setStatusMessage(errorMsg);
       setIsProcessing(false);
     }
   };
@@ -73,12 +109,13 @@ export default function AddFileModal({
         >
           {/* Close button */}
           <button
-            onClick={() => setShowAddFile(false)}
+            onClick={handleCancel}
             className="absolute disabled:opacity-50 text-3xl font-light leading-none"
             style={{ top: '1rem', right: '1rem', left: 'auto', color: '#ef4444' }}
             onMouseEnter={(e) => e.target.style.color = '#dc2626'}
             onMouseLeave={(e) => e.target.style.color = '#ef4444'}
             aria-label="Close"
+            disabled={isProcessing}
           >
             ×
           </button>
@@ -153,17 +190,43 @@ export default function AddFileModal({
                 />
               </div>
             )}
+
+            {/* Status Message - Shows current operation status */}
+            {showPasswordField && statusMessage && (
+              <div className="mt-3">
+                <div className="flex items-center gap-2 text-xs font-mono text-gray-700 dark:text-gray-300">
+                  {isProcessing && statusMessage !== "Success!" && !statusMessage.startsWith("Error") && (
+                    <span className="inline-block animate-pulse">⋯</span>
+                  )}
+                  {statusMessage === "Success!" && (
+                    <span className="text-green-600 dark:text-green-400">✓</span>
+                  )}
+                  {statusMessage.startsWith("Error") && (
+                    <span className="text-red-600 dark:text-red-400">✗</span>
+                  )}
+                  <span className={
+                    statusMessage === "Success!" 
+                      ? "text-green-600 dark:text-green-400" 
+                      : statusMessage.startsWith("Error")
+                      ? "text-red-600 dark:text-red-400"
+                      : ""
+                  }>{statusMessage}</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}
           <div className="flex justify-end gap-3 mt-6 max-w-[400px] mx-auto">
-            <button
-              onClick={() => setShowAddFile(false)}
-              className="px-5 py-2 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-800 text-sm dark:text-gray-200"
-              disabled={isProcessing}
-            >
-              Cancel
-            </button>
+            {showPasswordField && (
+              <button
+                onClick={handleCancel}
+                className="px-5 py-2 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-800 text-sm dark:text-gray-200"
+                disabled={isProcessing}
+              >
+                Back
+              </button>
+            )}
             {!showPasswordField ? (
               <button
                 onClick={handleAdd}

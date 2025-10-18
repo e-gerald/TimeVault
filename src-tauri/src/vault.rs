@@ -126,7 +126,7 @@ async fn fetch_public_unixtime_with_retries() -> Result<(u64, String)> {
         }
     }
 
-    Err(anyhow!("All Server Time endpoints failed"))
+    Err(anyhow!("Date and time vertification failed. "))
 }
 
 /* -------------------------
@@ -181,20 +181,43 @@ pub fn init_vault(vault_dir: String, password: String, vault_unlock_date: u64) -
     Ok(())
 }
 
-/// internal add file
-pub fn add_file(vault_dir: String, file_path: String, password: String, file_unlock_date: u64) -> Result<()> {
+/// internal add file with optional custom filename
+pub fn add_file_with_name(vault_dir: String, file_path: String, password: String, file_unlock_date: u64, custom_filename: Option<String>) -> Result<()> {
     let vault_path = Path::new(&vault_dir);
     let file = Path::new(&file_path);
     let meta_path = vault_meta_path(vault_path);
     let meta_raw = fs::read(&meta_path)?;
     let meta: VaultMetadata = serde_json::from_slice(&meta_raw)?;
 
+    let fname = if let Some(custom_name) = custom_filename {
+        custom_name
+    } else {
+        file.file_name().ok_or_else(|| anyhow!("bad filename"))?.to_string_lossy().to_string()
+    };
+    
+    // Check if file with same name already exists
+    let fm_dir = files_meta_dir(vault_path);
+    if fm_dir.exists() {
+        for entry in fs::read_dir(&fm_dir)? {
+            let path = entry?.path();
+            if path.is_file() {
+                let raw = fs::read(&path)?;
+                if let Ok(existing_meta) = serde_json::from_slice::<EncryptedFileMeta>(&raw) {
+                    if existing_meta.filename == fname {
+                        return Err(anyhow!("FILE_EXISTS:{}", fname));
+                    }
+                }
+            }
+        }
+    }
+
     let salt = general_purpose::STANDARD.decode(&meta.salt_b64).map_err(|e| anyhow!(e.to_string()))?;
     let derived = derive_key(&password, &salt, meta.argon_mem_kib, meta.argon_iters, meta.argon_parallelism)?;
     let wrapped = general_purpose::STANDARD.decode(&meta.wrapped_fek_b64).map_err(|e| anyhow!(e.to_string()))?;
     let wrap_nonce = general_purpose::STANDARD.decode(&meta.wrap_nonce_b64).map_err(|e| anyhow!(e.to_string()))?;
     let aead = XChaCha20Poly1305::new(Key::from_slice(&derived));
-    let fek = aead.decrypt(XNonce::from_slice(&wrap_nonce), wrapped.as_ref())?;
+    let fek = aead.decrypt(XNonce::from_slice(&wrap_nonce), wrapped.as_ref())
+        .map_err(|_| anyhow!("Invalid password. Please check your password and try again."))?;
 
     let plaintext = fs::read(file)?;
     let mut fek_arr = [0u8; 32];
@@ -208,7 +231,6 @@ pub fn add_file(vault_dir: String, file_path: String, password: String, file_unl
     OsRng.fill_bytes(&mut nonce_bytes);
     let ciphertext = aead_fek.encrypt(XNonce::from_slice(&nonce_bytes), plaintext.as_ref())?;
 
-    let fname = file.file_name().ok_or_else(|| anyhow!("bad filename"))?.to_string_lossy().to_string();
     let locked_name = format!(".locked_{}", fname);
     fs::write(vault_path.join(&locked_name), &ciphertext)?;
 
@@ -235,6 +257,11 @@ pub fn add_file(vault_dir: String, file_path: String, password: String, file_unl
     Ok(())
 }
 
+/// internal add file (backward compatibility wrapper)
+pub fn add_file(vault_dir: String, file_path: String, password: String, file_unlock_date: u64) -> Result<()> {
+    add_file_with_name(vault_dir, file_path, password, file_unlock_date, None)
+}
+
 /// internal unlock (async)
 pub async fn unlock_vault(vault_dir: String, out_dir: String, password: String) -> Result<String> {
     let vault_path = Path::new(&vault_dir);
@@ -249,7 +276,8 @@ pub async fn unlock_vault(vault_dir: String, out_dir: String, password: String) 
     let wrapped = general_purpose::STANDARD.decode(&meta.wrapped_fek_b64).map_err(|e| anyhow!(e.to_string()))?;
     let wrap_nonce = general_purpose::STANDARD.decode(&meta.wrap_nonce_b64).map_err(|e| anyhow!(e.to_string()))?;
     let fek = XChaCha20Poly1305::new(Key::from_slice(&derived))
-        .decrypt(XNonce::from_slice(&wrap_nonce), wrapped.as_ref())?;
+        .decrypt(XNonce::from_slice(&wrap_nonce), wrapped.as_ref())
+        .map_err(|_| anyhow!("Invalid password. Please check your password and try again."))?;
 
     let (server_time, _) = fetch_public_unixtime_with_retries().await?;
     if meta.last_verified_time != 0 && server_time < meta.last_verified_time {
@@ -318,10 +346,36 @@ pub fn get_status(vault_path: String) -> Result<Vec<EncryptedFileMeta>> {
     Ok(results)
 }
 
+/// Verify vault password without performing any operations
+pub fn verify_password(vault_dir: String, password: String) -> Result<()> {
+    let vault_path = Path::new(&vault_dir);
+    let meta_path = vault_meta_path(vault_path);
+    let meta_raw = fs::read(&meta_path)?;
+    let meta: VaultMetadata = serde_json::from_slice(&meta_raw)?;
+
+    let salt = general_purpose::STANDARD.decode(&meta.salt_b64).map_err(|e| anyhow!(e.to_string()))?;
+    let derived = derive_key(&password, &salt, meta.argon_mem_kib, meta.argon_iters, meta.argon_parallelism)?;
+    let wrapped = general_purpose::STANDARD.decode(&meta.wrapped_fek_b64).map_err(|e| anyhow!(e.to_string()))?;
+    let wrap_nonce = general_purpose::STANDARD.decode(&meta.wrap_nonce_b64).map_err(|e| anyhow!(e.to_string()))?;
+    
+    // Try to decrypt the FEK - this will fail if password is wrong
+    let aead = XChaCha20Poly1305::new(Key::from_slice(&derived));
+    let _fek = aead.decrypt(XNonce::from_slice(&wrap_nonce), wrapped.as_ref())
+        .map_err(|_| anyhow!("Invalid password. Please check your password and try again."))?;
+    
+    // If we got here, password is correct
+    Ok(())
+}
+
 /* -------------------------
    Tauri command wrappers
    (these return Result<..., String> so tauri::generate_handler works)
    ------------------------- */
+
+#[tauri::command]
+pub fn verify_vault_password(#[allow(non_snake_case)] vaultDir: String, password: String) -> Result<(), String> {
+    verify_password(vaultDir, password).map_err(|e| e.to_string())
+}
 
 #[tauri::command]
 pub fn init_vault_tauri(#[allow(non_snake_case)] vaultDir: String, password: String, #[allow(non_snake_case)] vaultUnlockDate: u64) -> Result<(), String> {
@@ -331,6 +385,11 @@ pub fn init_vault_tauri(#[allow(non_snake_case)] vaultDir: String, password: Str
 #[tauri::command]
 pub fn add_file_tauri(#[allow(non_snake_case)] vaultDir: String, #[allow(non_snake_case)] filePath: String, password: String, #[allow(non_snake_case)] fileUnlockDate: u64) -> Result<(), String> {
     add_file(vaultDir, filePath, password, fileUnlockDate).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn add_file_with_custom_name(#[allow(non_snake_case)] vaultDir: String, #[allow(non_snake_case)] filePath: String, password: String, #[allow(non_snake_case)] fileUnlockDate: u64, #[allow(non_snake_case)] customFilename: String) -> Result<(), String> {
+    add_file_with_name(vaultDir, filePath, password, fileUnlockDate, Some(customFilename)).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

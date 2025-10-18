@@ -19,6 +19,7 @@ export default function Dashboard({
   const [selectedFile, setSelectedFile] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [wiggling, setWiggling] = useState(null);
+  const [statusMessage, setStatusMessage] = useState("");
   const logContainerRef = useRef(null);
 
   // Helper to check if file is unlocked based on server time
@@ -114,6 +115,7 @@ export default function Dashboard({
     setShowPasswordField(false);
     setSelectedFile(null);
     setPasswordAction(null);
+    setStatusMessage("");
   };
 
   const handleConfirmPassword = async () => {
@@ -122,20 +124,29 @@ export default function Dashboard({
       return;
     }
     setIsProcessing(true);
+    setStatusMessage("Verifying vault password...");
     
     try {
       if (passwordAction === 'unlock-file') {
-        await unlockSingle(selectedFile, password);
+        await unlockSingle(selectedFile, password, (status) => {
+          setStatusMessage(status);
+        });
       } else if (passwordAction === 'unlock-vault') {
-        await unlockAll(password);
+        await unlockAll(password, (status) => {
+          setStatusMessage(status);
+        });
       }
-      setPassword("");
-      setShowPasswordField(false);
-      setSelectedFile(null);
-      setPasswordAction(null);
+      setStatusMessage("Success!");
+      setTimeout(() => {
+        setPassword("");
+        setShowPasswordField(false);
+        setSelectedFile(null);
+        setPasswordAction(null);
+        setStatusMessage("");
+      }, 1000);
     } catch (error) {
       console.error('Password action failed:', error);
-    } finally {
+      setStatusMessage("");
       setIsProcessing(false);
     }
   };
@@ -281,48 +292,73 @@ export default function Dashboard({
                 </button>
               </>
             ) : (
-              <div className="flex items-center gap-3 max-w-md w-full">
-                <div className="flex-1">
-                  <label className="block text-xs font-medium mb-1 dark:text-gray-200">
-                    {passwordAction === 'unlock-file' 
-                      ? `Vault Password (to unlock ${selectedFile?.filename || selectedFile?.name || 'file'})` 
-                      : 'Vault Password (to unlock all files)'}
-                  </label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleConfirmPassword()}
-                    placeholder="Enter vault password"
-                    className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 dark:text-gray-100 px-3 text-sm"
-                    style={{ height: '32px', lineHeight: '32px', paddingTop: 0, paddingBottom: 0 }}
-                    autoComplete="current-password"
-                    disabled={isProcessing}
-                    autoFocus
-                  />
+              <div className="w-full max-w-2xl mx-auto space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <label className="block text-xs font-medium mb-1 dark:text-gray-200">
+                      {passwordAction === 'unlock-file' 
+                        ? `Vault Password (to unlock ${selectedFile?.filename || selectedFile?.name || 'file'})` 
+                        : 'Vault Password (to unlock all files)'}
+                    </label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleConfirmPassword()}
+                      placeholder="Enter vault password"
+                      className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 dark:text-gray-100 px-3 text-sm"
+                      style={{ height: '32px', lineHeight: '32px', paddingTop: 0, paddingBottom: 0 }}
+                      autoComplete="current-password"
+                      disabled={isProcessing}
+                      autoFocus
+                    />
+                  </div>
+                  <div className="flex gap-2 pt-5">
+                    <button
+                      onClick={handleCancelPassword}
+                      disabled={isProcessing}
+                      className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-800 text-sm dark:text-gray-200 disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleConfirmPassword}
+                      disabled={isProcessing}
+                      className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm disabled:opacity-50"
+                    >
+                      {isProcessing ? "Processing..." : "Confirm"}
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-2 pt-5">
-                  <button
-                    onClick={handleCancelPassword}
-                    disabled={isProcessing}
-                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-800 text-sm dark:text-gray-200 disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleConfirmPassword}
-                    disabled={isProcessing}
-                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm disabled:opacity-50"
-                  >
-                    {isProcessing ? "Processing..." : "Confirm"}
-                  </button>
-                </div>
+                {/* Status Message - Shows current operation status */}
+                {statusMessage && (
+                  <div className="mt-3">
+                    <div className="flex items-center gap-2 text-xs font-mono text-gray-700 dark:text-gray-300">
+                      {isProcessing && statusMessage !== "Success!" && !statusMessage.startsWith("Error") && (
+                        <span className="inline-block animate-pulse">⋯</span>
+                      )}
+                      {statusMessage === "Success!" && (
+                        <span className="text-green-600 dark:text-green-400">✓</span>
+                      )}
+                      {statusMessage.startsWith("Error") && (
+                        <span className="text-red-600 dark:text-red-400">✗</span>
+                      )}
+                      <span className={
+                        statusMessage === "Success!" 
+                          ? "text-green-600 dark:text-green-400" 
+                          : statusMessage.startsWith("Error")
+                          ? "text-red-600 dark:text-red-400"
+                          : ""
+                      }>{statusMessage}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
-          {/* Activity Log */}
-          {log && (
+          {/* Activity Log - Only show when password field is NOT visible */}
+          {log && !showPasswordField && (
             <div className="px-12">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">

@@ -97,7 +97,7 @@ export default function App() {
       }
     } catch (e) {
       console.error("refreshVaultInfo", e);
-      appendLog("Error refreshing info: " + (e?.message || e));
+      appendLog("Error: " + (e?.message || e) + "Please check your internet connection");
       // Fallback to cached time if refresh fails
       try {
         const cachedInfo = await tauriInvoke("vault_info", { vaultDir: path });
@@ -206,46 +206,148 @@ export default function App() {
     }
   };
 
-  // Add file to vault
-  const addFile = async (password) => {
-    if (!vaultPath) return alert("Open or create a vault first");
-    if (!pickedFile) return alert("Pick a file to add");
-    if (!fileUnlockDate) return alert("Pick file unlock date");
+  // Helper function to serialize filename
+  const serializeFilename = (filename, n) => {
+    const lastDotIndex = filename.lastIndexOf('.');
+    
+    if (lastDotIndex === -1) {
+      // No extension
+      return `${filename} (${n})`;
+    } else {
+      const name = filename.substring(0, lastDotIndex);
+      const ext = filename.substring(lastDotIndex);
+      return `${name} (${n})${ext}`;
+    }
+  };
+
+  // Verify password only (for add file modal)
+  const verifyPasswordForAddFile = async (password, statusCallback) => {
     if (!password) return;
 
-    const unlockUnix = Math.floor(fileUnlockDate.getTime() / 1000);
-
     try {
-      appendLog("Encrypting and adding file...");
-      await tauriInvoke("add_file_tauri", {
+      appendLog("Verifying vault password...");
+      if (statusCallback) statusCallback("Verifying vault password...");
+      await tauriInvoke("verify_vault_password", {
         vaultDir: vaultPath,
-        filePath: pickedFile,
         password,
-        fileUnlockDate: unlockUnix,
       });
-
-      appendLog(`File added: ${pickedFile.split(/[\\/]/).pop()}`);
-      setPickedFile("");
-      setFileUnlockDate(null);
-      await refreshVaultStatus(vaultPath);
-      await refreshVaultInfo(vaultPath); // Update server time after adding file
+      appendLog("Password verified successfully");
+      if (statusCallback) statusCallback("Password verified successfully");
+      return true;
     } catch (e) {
-      console.error("addFile", e);
-      appendLog("Error adding file: " + (e?.message || e));
+      console.error("verifyPasswordForAddFile", e);
+      const errorMsg = e?.message || e;
+      appendLog("Error: " + errorMsg);
+      if (statusCallback) statusCallback("Error: " + errorMsg);
       throw e; // Re-throw to handle in UI
     }
   };
 
+  // Add file to vault (called after password verification and modal closes)
+  const addFileToVault = async (password, fileToAdd, unlockDate) => {
+    if (!vaultPath) return;
+    if (!fileToAdd) return;
+    if (!unlockDate) return;
+    if (!password) return;
+
+    const unlockUnix = Math.floor(unlockDate.getTime() / 1000);
+
+    try {
+      // Encrypt and add file
+      appendLog("Encrypting and adding file...");
+      await tauriInvoke("add_file_tauri", {
+        vaultDir: vaultPath,
+        filePath: fileToAdd,
+        password,
+        fileUnlockDate: unlockUnix,
+      });
+
+      appendLog(`File added: ${fileToAdd.split(/[\\/]/).pop()}`);
+      await refreshVaultStatus(vaultPath);
+      await refreshVaultInfo(vaultPath); // Update server time after adding file
+    } catch (e) {
+      console.error("addFileToVault", e);
+      const errorMsg = e?.message || e;
+      
+      // Check if this is a file exists error
+      if (errorMsg.startsWith("FILE_EXISTS:")) {
+        const existingFilename = errorMsg.split(":")[1];
+        const newFilename = serializeFilename(existingFilename, 1);
+        
+        // Ask user what to do
+        const userChoice = confirm(
+          `A file named "${existingFilename}" already exists in the vault.\n\n` +
+          `Click OK to keep both files (will rename new file to "${newFilename}"), ` +
+          `or Cancel to stop adding this file.`
+        );
+        
+        if (userChoice) {
+          // User chose to rename - try with serialized filenames
+          let attemptNumber = 1;
+          let success = false;
+          
+          while (attemptNumber <= 10 && !success) {
+            try {
+              const originalFilename = fileToAdd.split(/[\\/]/).pop();
+              const serializedFilename = serializeFilename(originalFilename, attemptNumber);
+              appendLog(`Trying with serialized name: ${serializedFilename}`);
+              
+              await tauriInvoke("add_file_with_custom_name", {
+                vaultDir: vaultPath,
+                filePath: fileToAdd,
+                password,
+                fileUnlockDate: unlockUnix,
+                customFilename: serializedFilename,
+              });
+              
+              appendLog(`File added: ${serializedFilename}`);
+              await refreshVaultStatus(vaultPath);
+              await refreshVaultInfo(vaultPath);
+              success = true;
+            } catch (retryError) {
+              const retryMsg = retryError?.message || retryError;
+              if (retryMsg.startsWith("FILE_EXISTS:")) {
+                attemptNumber++;
+              } else {
+                // Different error, rethrow
+                throw retryError;
+              }
+            }
+          }
+          
+          if (!success) {
+            appendLog("Error: Unable to add file - too many files with similar names exist");
+          }
+        } else {
+          appendLog("File add cancelled by user");
+        }
+      } else {
+        appendLog("Error: " + errorMsg);
+      }
+    }
+  };
+
   // Unlock single vault file
-  const unlockSingle = async (file, password) => {
+  const unlockSingle = async (file, password, statusCallback) => {
     if (!vaultPath || !password) return;
 
     try {
-      // Create "Unlocked Files" directory in the vault directory
+      // Step 1: Verify password first
+      appendLog("Verifying vault password...");
+      if (statusCallback) statusCallback("Verifying vault password...");
+      await tauriInvoke("verify_vault_password", {
+        vaultDir: vaultPath,
+        password,
+      });
+      appendLog("Password verified successfully");
+      if (statusCallback) statusCallback("Password verified successfully");
+
+      // Step 2: Unlock file
       const vaultDir = vaultPath.substring(0, vaultPath.lastIndexOf(/[\\/]/.test(vaultPath) ? (vaultPath.includes('/') ? '/' : '\\') : '/'));
       const unlockedDir = vaultDir + (vaultPath.includes('/') ? '/' : '\\') + 'Unlocked Files';
       
       appendLog(`Unlocking file: ${file.name || file.filename}...`);
+      if (statusCallback) statusCallback(`Unlocking file...`);
       const result = await tauriInvoke("unlock_vault_tauri", {
         vaultDir: vaultPath,
         outDir: unlockedDir,
@@ -256,22 +358,35 @@ export default function App() {
       await refreshVaultStatus(vaultPath);
     } catch (e) {
       console.error("unlockSingle", e);
-      appendLog("Error unlocking file: " + (e?.message || e));
+      const errorMsg = e?.message || e;
+      appendLog("Error: " + errorMsg);
+      if (statusCallback) statusCallback("Error: " + errorMsg);
       throw e; // Re-throw to handle in UI
     }
   };
 
   // Unlock all files in vault (saves to "Unlocked Files" folder)
-  const unlockAll = async (password) => {
+  const unlockAll = async (password, statusCallback) => {
     if (!vaultPath || !password) return;
 
     try {
-      // Create "Unlocked Files" directory in the vault's parent directory
+      // Step 1: Verify password first
+      appendLog("Verifying vault password...");
+      if (statusCallback) statusCallback("Verifying vault password...");
+      await tauriInvoke("verify_vault_password", {
+        vaultDir: vaultPath,
+        password,
+      });
+      appendLog("Password verified successfully");
+      if (statusCallback) statusCallback("Password verified successfully");
+
+      // Step 2: Unlock all files
       const vaultDir = vaultPath.substring(0, vaultPath.lastIndexOf(/[\\/]/.test(vaultPath) ? (vaultPath.includes('/') ? '/' : '\\') : '/'));
       const unlockedDir = vaultDir + (vaultPath.includes('/') ? '/' : '\\') + 'Unlocked Files';
 
       appendLog("Unlocking all eligible files...");
       appendLog(`Output directory: ${unlockedDir}`);
+      if (statusCallback) statusCallback("Unlocking all eligible files...");
       
       const result = await tauriInvoke("unlock_vault_tauri", {
         vaultDir: vaultPath,
@@ -285,7 +400,9 @@ export default function App() {
       await refreshVaultInfo(vaultPath);
     } catch (e) {
       console.error("unlockAll", e);
-      appendLog("Error unlocking vault: " + (e?.message || e));
+      const errorMsg = e?.message || e;
+      appendLog("Error: " + errorMsg);
+      if (statusCallback) statusCallback("Error: " + errorMsg);
       throw e; // Re-throw to handle in UI
     }
   };
@@ -414,7 +531,18 @@ export default function App() {
         setPickedFile={setPickedFile}
         fileUnlockDate={fileUnlockDate}
         setFileUnlockDate={setFileUnlockDate}
-        addFile={addFile}
+        verifyPassword={verifyPasswordForAddFile}
+        onPasswordVerified={(password) => {
+          // After modal closes and password is verified, add the file
+          // Save the current file and date before they get cleared
+          const fileToAdd = pickedFile;
+          const unlockDate = fileUnlockDate;
+          // Clear the form
+          setPickedFile("");
+          setFileUnlockDate(null);
+          // Add file in background (FILE_EXISTS dialog will show if needed)
+          addFileToVault(password, fileToAdd, unlockDate);
+        }}
         pickFileForAdd={pickFileForAdd}
       />
     )}
