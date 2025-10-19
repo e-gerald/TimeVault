@@ -12,12 +12,10 @@ export default function VaultInitializer({
   initializeVault,
   showPassword,
   setShowPassword,
-  // from parent
   pickCreateDir,
   isInitializing,
   log,
 }) {
-  // ✅ Fixed handleCreate to pass directory path as string
   const handleCreate = async () => {
     if (typeof initializeVault === "function") {
       await initializeVault(pickedDir);
@@ -33,7 +31,6 @@ export default function VaultInitializer({
       ref={dropRef}
     >
       <div className="modal-window space-y-4 dark:bg-[#0f0f15] dark:text-gray-100 bg-white rounded-2xl p-6 w-[480px] max-w-[94vw] border border-gray-200 dark:border-gray-700 relative" style={{ direction: 'ltr' }}>
-        {/* Close button */}
         <button
           onClick={() => setShowCreate(false)}
           disabled={isInitializing}
@@ -50,7 +47,6 @@ export default function VaultInitializer({
           Create New Vault
         </h2>
 
-        {/* Directory */}
         <div className="space-y-2 max-w-[400px] mx-auto" style={{ opacity: isInitializing ? 0.6 : 1 }}>
           <label className="block text-sm">Directory</label>
           <div className="flex gap-2">
@@ -74,7 +70,6 @@ export default function VaultInitializer({
           </div>
         </div>
 
-        {/* Password */}
         <div className="space-y-2 max-w-[400px] mx-auto" style={{ opacity: isInitializing ? 0.6 : 1 }}>
           <label className="block text-sm dark:text-gray-200">Password</label>
           <input
@@ -89,7 +84,6 @@ export default function VaultInitializer({
           />
         </div>
 
-        {/* Log output during vault creation */}
         {log && (
           <div className="max-w-[400px] mx-auto">
             <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded text-sm">
@@ -100,7 +94,6 @@ export default function VaultInitializer({
           </div>
         )}
 
-        {/* Actions */}
         <div className="flex justify-end max-w-[400px] mx-auto" style={{ marginTop: '0.5rem' }}>
           <button
             onClick={handleCreate}

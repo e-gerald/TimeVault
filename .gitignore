@@ -1,14 +1,11 @@
-# Dependencies
 node_modules/
 vault-frontend/node_modules/
 
-# Build outputs
 target/
 dist/
 dist-ssr/
 *.local
 
-# Logs
 logs
 *.log
 npm-debug.log*
@@ -17,7 +14,6 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -28,15 +24,12 @@ lerna-debug.log*
 *.sln
 *.sw?
 
-# OS files
 Thumbs.db
 .DS_Store
 
-# Rust
 Cargo.lock
 **/target/
 
-# Environment files
 .env
 .env.local
 

@@ -27,7 +27,6 @@ html, body, #root {
   --input-fg: #f1f1f1;
 }
 
-/* Only apply custom styles to buttons without Tailwind classes */
 button:not([class*="bg-"]):not([class*="text-"]):not([class*="px-"]):not([class*="py-"]) {
   border-radius: 0.6rem;
   padding: 0.4rem 1rem;
@@ -49,7 +48,6 @@ button:not([class*="bg-"]):not([class*="text-"]):not([class*="px-"]):not([class*
   background: rgba(80,80,100,0.6);
 }
 
-/* Only apply custom styles to inputs without Tailwind classes */
 input:not([class*="bg-"]):not([class*="text-"]):not([class*="px-"]):not([class*="py-"]), 
 select:not([class*="bg-"]):not([class*="text-"]):not([class*="px-"]):not([class*="py-"]), 
 textarea:not([class*="bg-"]):not([class*="text-"]):not([class*="px-"]):not([class*="py-"]) {
@@ -94,16 +92,15 @@ input::placeholder {
   background: rgba(25,25,35,0.6);
 }
 
-/* PASSWORD ICON ALIGNMENT */
 .modal-window .relative {
   display: flex;
-  align-items: center; /* aligns icon vertically with text */
+  align-items: center; 
 }
 
 .modal-window .relative input[type="password"],
 .modal-window .relative input[type="text"] {
   flex: 1;
-  padding-right: 2.5rem; /* space for icon */
+  padding-right: 2.5rem; 
   height: auto;
   line-height: normal;
 }
@@ -118,7 +115,6 @@ input::placeholder {
   font-size: 0.875rem;
 }
 
-/* DATETIME INPUT FIX */
 .modal-window input[type="datetime-local"] {
   padding-top: 0.35rem;
   padding-bottom: 0.35rem;

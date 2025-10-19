@@ -1,5 +1,4 @@
 
-/* styles/datetimepicker.css - minimal styles to work with react-datetime-picker */
 .react-datetime-picker {
   border-radius: 0.5rem;
   background-color: transparent;
@@ -19,7 +18,6 @@
 .react-datetime-picker__calendar {
   z-index: 50;
 }
-/* dark mode support */
 .dark .react-datetime-picker__inputGroup__input {
   background: #1f2937;
   color: #e5e7eb;

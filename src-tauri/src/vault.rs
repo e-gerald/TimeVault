@@ -15,7 +15,6 @@ use zeroize::Zeroize;
 use tokio::time::sleep;
 use std::time::Duration as StdDuration;
 
-/// Vault metadata persisted to disk
 #[derive(Serialize, Deserialize)]
 pub struct VaultMetadata {
     pub version: u8,
@@ -30,13 +29,20 @@ pub struct VaultMetadata {
     pub last_verified_time: u64,
 }
 
-/// Per-file metadata
-#[derive(Serialize, Deserialize, Clone)]
+// New encrypted metadata structure
+#[derive(Serialize, Deserialize)]
 pub struct EncryptedFileMeta {
-    pub nonce_b64: String,
-    pub ciphertext_b64: String,
-    pub file_unlock_date: u64,
+    pub encrypted_payload_b64: String,  // Encrypted JSON of FileMetaPayload
+    pub metadata_nonce_b64: String,     // Nonce for metadata encryption
+}
+
+// Internal payload (not stored directly, always encrypted)
+#[derive(Serialize, Deserialize, Clone)]
+pub struct FileMetaPayload {
     pub filename: String,
+    pub file_unlock_date: u64,
+    pub nonce_b64: String,      // File encryption nonce
+    pub ciphertext_b64: String, // Encrypted file content
 }
 
 fn default_argon_params() -> (u32, u32, u32) {
@@ -65,6 +71,32 @@ fn derive_key(password: &str, salt: &[u8], mem_kib: u32, iters: u32, parallelism
     let mut out = [0u8; 32];
     argon.hash_password_into(password.as_bytes(), salt, &mut out).map_err(|e| anyhow!(e.to_string()))?;
     Ok(out)
+}
+
+fn encrypt_file_metadata(fek: &[u8; 32], payload: &FileMetaPayload) -> Result<(String, String)> {
+    let aead = XChaCha20Poly1305::new(Key::from_slice(fek));
+    let mut nonce_bytes = [0u8; 24];
+    OsRng.fill_bytes(&mut nonce_bytes);
+    
+    let payload_json = serde_json::to_vec(payload)?;
+    let encrypted = aead.encrypt(XNonce::from_slice(&nonce_bytes), payload_json.as_ref())?;
+    
+    Ok((
+        general_purpose::STANDARD.encode(&encrypted),
+        general_purpose::STANDARD.encode(&nonce_bytes)
+    ))
+}
+
+fn decrypt_file_metadata(fek: &[u8; 32], encrypted_b64: &str, nonce_b64: &str) -> Result<FileMetaPayload> {
+    let aead = XChaCha20Poly1305::new(Key::from_slice(fek));
+    let encrypted = general_purpose::STANDARD.decode(encrypted_b64)?;
+    let nonce = general_purpose::STANDARD.decode(nonce_b64)?;
+    
+    let decrypted = aead.decrypt(XNonce::from_slice(&nonce), encrypted.as_ref())
+        .map_err(|_| anyhow!("Metadata decryption failed - possible tampering detected"))?;
+    
+    let payload: FileMetaPayload = serde_json::from_slice(&decrypted)?;
+    Ok(payload)
 }
 
 async fn fetch_public_unixtime_with_retries() -> Result<(u64, String)> {
@@ -99,16 +131,12 @@ async fn fetch_public_unixtime_with_retries() -> Result<(u64, String)> {
                                     return Ok((epoch as u64, label.to_string()));
                                 }
                             } else if *label == "[Server 2]" {
-                                // Try currentDateTime field first (RFC3339 format)
                                 if let Some(dt) = json["currentDateTime"].as_str() {
                                     if let Ok(parsed) = DateTime::parse_from_rfc3339(dt) {
                                         return Ok((parsed.timestamp() as u64, label.to_string()));
                                     }
                                 }
-                                // Fallback to currentFileTime if available
                                 if let Some(filetime) = json["currentFileTime"].as_i64() {
-                                    // Windows FILETIME is 100-nanosecond intervals since Jan 1, 1601
-                                    // Convert to Unix timestamp: (filetime / 10000000) - 11644473600
                                     let unix_time = (filetime / 10_000_000) - 11_644_473_600;
                                     return Ok((unix_time as u64, label.to_string()));
                                 }
@@ -129,11 +157,6 @@ async fn fetch_public_unixtime_with_retries() -> Result<(u64, String)> {
     Err(anyhow!("Date and time vertification failed. "))
 }
 
-/* -------------------------
-   Internal (anyhow) functions
-   ------------------------- */
-
-/// internal init - returns anyhow::Result
 pub fn init_vault(vault_dir: String, password: String, vault_unlock_date: u64) -> Result<()> {
     let vault_path = Path::new(&vault_dir);
     ensure_vault_dir(vault_path)?;
@@ -172,7 +195,6 @@ pub fn init_vault(vault_dir: String, password: String, vault_unlock_date: u64) -
         fs::create_dir_all(&fm)?;
     }
 
-    // wipe sensitive buffers
     derived.zeroize();
     fek.zeroize();
     salt.zeroize();
@@ -181,7 +203,6 @@ pub fn init_vault(vault_dir: String, password: String, vault_unlock_date: u64) -
     Ok(())
 }
 
-/// internal add file with optional custom filename
 pub fn add_file_with_name(vault_dir: String, file_path: String, password: String, file_unlock_date: u64, custom_filename: Option<String>) -> Result<()> {
     let vault_path = Path::new(&vault_dir);
     let file = Path::new(&file_path);
@@ -195,22 +216,7 @@ pub fn add_file_with_name(vault_dir: String, file_path: String, password: String
         file.file_name().ok_or_else(|| anyhow!("bad filename"))?.to_string_lossy().to_string()
     };
     
-    // Check if file with same name already exists
-    let fm_dir = files_meta_dir(vault_path);
-    if fm_dir.exists() {
-        for entry in fs::read_dir(&fm_dir)? {
-            let path = entry?.path();
-            if path.is_file() {
-                let raw = fs::read(&path)?;
-                if let Ok(existing_meta) = serde_json::from_slice::<EncryptedFileMeta>(&raw) {
-                    if existing_meta.filename == fname {
-                        return Err(anyhow!("FILE_EXISTS:{}", fname));
-                    }
-                }
-            }
-        }
-    }
-
+    // Derive FEK first (needed for file existence check)
     let salt = general_purpose::STANDARD.decode(&meta.salt_b64).map_err(|e| anyhow!(e.to_string()))?;
     let derived = derive_key(&password, &salt, meta.argon_mem_kib, meta.argon_iters, meta.argon_parallelism)?;
     let wrapped = general_purpose::STANDARD.decode(&meta.wrapped_fek_b64).map_err(|e| anyhow!(e.to_string()))?;
@@ -219,13 +225,31 @@ pub fn add_file_with_name(vault_dir: String, file_path: String, password: String
     let fek = aead.decrypt(XNonce::from_slice(&wrap_nonce), wrapped.as_ref())
         .map_err(|_| anyhow!("Invalid password. Please check your password and try again."))?;
 
-    let plaintext = fs::read(file)?;
     let mut fek_arr = [0u8; 32];
-    // ensure fek length is correct
     if fek.len() < 32 {
         return Err(anyhow!("FEK length is invalid"));
     }
     fek_arr.copy_from_slice(&fek[0..32]);
+    
+    let fm_dir = files_meta_dir(vault_path);
+    if fm_dir.exists() {
+        for entry in fs::read_dir(&fm_dir)? {
+            let path = entry?.path();
+            if path.is_file() {
+                let raw = fs::read(&path)?;
+                if let Ok(encrypted_meta) = serde_json::from_slice::<EncryptedFileMeta>(&raw) {
+                    // Try to decrypt metadata to check filename
+                    if let Ok(payload) = decrypt_file_metadata(&fek_arr, &encrypted_meta.encrypted_payload_b64, &encrypted_meta.metadata_nonce_b64) {
+                        if payload.filename == fname {
+                            return Err(anyhow!("FILE_EXISTS:{}", fname));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let plaintext = fs::read(file)?;
     let aead_fek = XChaCha20Poly1305::new(Key::from_slice(&fek_arr));
     let mut nonce_bytes = [0u8; 24];
     OsRng.fill_bytes(&mut nonce_bytes);
@@ -234,35 +258,36 @@ pub fn add_file_with_name(vault_dir: String, file_path: String, password: String
     let locked_name = format!(".locked_{}", fname);
     fs::write(vault_path.join(&locked_name), &ciphertext)?;
 
-    let file_meta = EncryptedFileMeta {
+    // Create metadata payload
+    let payload = FileMetaPayload {
+        filename: fname.clone(),
+        file_unlock_date,
         nonce_b64: general_purpose::STANDARD.encode(&nonce_bytes),
         ciphertext_b64: general_purpose::STANDARD.encode(&ciphertext),
-        file_unlock_date,
-        filename: fname.clone(),
     };
+
+    // Encrypt the metadata
+    let (encrypted_payload_b64, metadata_nonce_b64) = encrypt_file_metadata(&fek_arr, &payload)?;
+
+    // Create encrypted metadata structure
+    let file_meta = EncryptedFileMeta {
+        encrypted_payload_b64,
+        metadata_nonce_b64,
+    };
+
     let meta_fname = format!("{}.meta.json", locked_name);
     fs::write(files_meta_dir(vault_path).join(meta_fname), serde_json::to_vec_pretty(&file_meta)?)?;
 
-    // wipe sensitive buffers
-    // (note: local fek_arr will be zeroed when dropped if we zeroize)
-    // zeroize crates for arrays:
-    // we can zeroize derived and fek_arr explicitly:
-    // derived is [u8;32] but here derived is moved into Key::from_slice earlier,
-    // zeroize local copy:
-    // (if you want to be thorough, keep references small and zeroize)
-    // but we will zeroize fek_arr now:
     let mut zero_me = fek_arr;
     zero_me.zeroize();
 
     Ok(())
 }
 
-/// internal add file (backward compatibility wrapper)
 pub fn add_file(vault_dir: String, file_path: String, password: String, file_unlock_date: u64) -> Result<()> {
     add_file_with_name(vault_dir, file_path, password, file_unlock_date, None)
 }
 
-/// internal unlock (async)
 pub async fn unlock_vault(vault_dir: String, out_dir: String, password: String) -> Result<String> {
     let vault_path = Path::new(&vault_dir);
     let out_path = Path::new(&out_dir);
@@ -301,17 +326,31 @@ pub async fn unlock_vault(vault_dir: String, out_dir: String, password: String) 
             let path = entry?.path();
             if path.is_file() {
                 let raw = fs::read(&path)?;
-                let fmeta: EncryptedFileMeta = serde_json::from_slice(&raw)?;
-                if server_time >= fmeta.file_unlock_date {
-                    let locked_path = vault_path.join(format!(".locked_{}", fmeta.filename));
-                    if locked_path.exists() {
-                        let ciphertext = fs::read(&locked_path)?;
-                        let nonce_bytes = general_purpose::STANDARD.decode(&fmeta.nonce_b64).map_err(|e| anyhow!(e.to_string()))?;
-                        if let Ok(plaintext) = aead_fek.decrypt(XNonce::from_slice(&nonce_bytes), ciphertext.as_ref()) {
-                            fs::write(out_path.join(&fmeta.filename), plaintext)?;
-                            decrypted_files.push(fmeta.filename);
+                match serde_json::from_slice::<EncryptedFileMeta>(&raw) {
+                    Ok(encrypted_meta) => {
+                        // Decrypt metadata
+                        match decrypt_file_metadata(&fek_arr, &encrypted_meta.encrypted_payload_b64, &encrypted_meta.metadata_nonce_b64) {
+                            Ok(payload) => {
+                                // Check if unlocked
+                                if server_time >= payload.file_unlock_date {
+                                    let locked_path = vault_path.join(format!(".locked_{}", payload.filename));
+                                    if locked_path.exists() {
+                                        let ciphertext = fs::read(&locked_path)?;
+                                        let nonce_bytes = general_purpose::STANDARD.decode(&payload.nonce_b64)?;
+                                        if let Ok(plaintext) = aead_fek.decrypt(XNonce::from_slice(&nonce_bytes), ciphertext.as_ref()) {
+                                            fs::write(out_path.join(&payload.filename), plaintext)?;
+                                            decrypted_files.push(payload.filename);
+                                        }
+                                    }
+                                }
+                            },
+                            Err(e) => {
+                                eprintln!("WARNING: Metadata integrity check failed");
+                                eprintln!("Possible tampering detected! Error: {}", e);
+                            }
                         }
-                    }
+                    },
+                    Err(_) => {}
                 }
             }
         }
@@ -320,15 +359,30 @@ pub async fn unlock_vault(vault_dir: String, out_dir: String, password: String) 
     meta.last_verified_time = server_time;
     fs::write(meta_path, serde_json::to_vec_pretty(&meta)?)?;
 
-    // zeroize fek_arr
     fek_arr.zeroize();
 
     Ok(format!("Decrypted files: {:?}", decrypted_files))
 }
 
-/// internal status
-pub fn get_status(vault_path: String) -> Result<Vec<EncryptedFileMeta>> {
-    let fm_dir = files_meta_dir(Path::new(&vault_path));
+pub fn get_status_with_password(vault_path: String, password: String) -> Result<Vec<serde_json::Value>> {
+    let vault_path_buf = Path::new(&vault_path);
+    let meta_path = vault_meta_path(vault_path_buf);
+    let meta_raw = fs::read(&meta_path)?;
+    let meta: VaultMetadata = serde_json::from_slice(&meta_raw)?;
+
+    // Derive FEK from password
+    let salt = general_purpose::STANDARD.decode(&meta.salt_b64)?;
+    let derived = derive_key(&password, &salt, meta.argon_mem_kib, meta.argon_iters, meta.argon_parallelism)?;
+    let wrapped = general_purpose::STANDARD.decode(&meta.wrapped_fek_b64)?;
+    let wrap_nonce = general_purpose::STANDARD.decode(&meta.wrap_nonce_b64)?;
+    let fek = XChaCha20Poly1305::new(Key::from_slice(&derived))
+        .decrypt(XNonce::from_slice(&wrap_nonce), wrapped.as_ref())
+        .map_err(|_| anyhow!("Invalid password"))?;
+
+    let mut fek_arr = [0u8; 32];
+    fek_arr.copy_from_slice(&fek[0..32]);
+
+    let fm_dir = files_meta_dir(vault_path_buf);
     let mut results = vec![];
 
     if fm_dir.exists() {
@@ -336,17 +390,37 @@ pub fn get_status(vault_path: String) -> Result<Vec<EncryptedFileMeta>> {
             let path = entry?.path();
             if path.is_file() {
                 let raw = fs::read(&path)?;
-                if let Ok(fmeta) = serde_json::from_slice::<EncryptedFileMeta>(&raw) {
-                    results.push(fmeta);
+                match serde_json::from_slice::<EncryptedFileMeta>(&raw) {
+                    Ok(encrypted_meta) => {
+                        // Decrypt metadata
+                        match decrypt_file_metadata(&fek_arr, &encrypted_meta.encrypted_payload_b64, &encrypted_meta.metadata_nonce_b64) {
+                            Ok(payload) => {
+                                // Return in frontend-compatible format
+                                results.push(serde_json::json!({
+                                    "filename": payload.filename,
+                                    "file_unlock_date": payload.file_unlock_date,
+                                    "nonce_b64": payload.nonce_b64,
+                                    "ciphertext_b64": payload.ciphertext_b64,
+                                }));
+                            },
+                            Err(e) => {
+                                eprintln!("WARNING: Metadata decryption failed for file: {:?}", path.file_name());
+                                eprintln!("Possible tampering detected! Error: {}", e);
+                            }
+                        }
+                    },
+                    Err(e) => {
+                        eprintln!("WARNING: Invalid metadata format: {:?} - {}", path.file_name(), e);
+                    }
                 }
             }
         }
     }
 
+    fek_arr.zeroize();
     Ok(results)
 }
 
-/// Verify vault password without performing any operations
 pub fn verify_password(vault_dir: String, password: String) -> Result<()> {
     let vault_path = Path::new(&vault_dir);
     let meta_path = vault_meta_path(vault_path);
@@ -358,19 +432,12 @@ pub fn verify_password(vault_dir: String, password: String) -> Result<()> {
     let wrapped = general_purpose::STANDARD.decode(&meta.wrapped_fek_b64).map_err(|e| anyhow!(e.to_string()))?;
     let wrap_nonce = general_purpose::STANDARD.decode(&meta.wrap_nonce_b64).map_err(|e| anyhow!(e.to_string()))?;
     
-    // Try to decrypt the FEK - this will fail if password is wrong
     let aead = XChaCha20Poly1305::new(Key::from_slice(&derived));
     let _fek = aead.decrypt(XNonce::from_slice(&wrap_nonce), wrapped.as_ref())
         .map_err(|_| anyhow!("Invalid password. Please check your password and try again."))?;
     
-    // If we got here, password is correct
     Ok(())
 }
-
-/* -------------------------
-   Tauri command wrappers
-   (these return Result<..., String> so tauri::generate_handler works)
-   ------------------------- */
 
 #[tauri::command]
 pub fn verify_vault_password(#[allow(non_snake_case)] vaultDir: String, password: String) -> Result<(), String> {
@@ -398,8 +465,8 @@ pub async fn unlock_vault_tauri(#[allow(non_snake_case)] vaultDir: String, #[all
 }
 
 #[tauri::command]
-pub fn status(#[allow(non_snake_case)] vaultPath: String) -> Result<Vec<EncryptedFileMeta>, String> {
-    get_status(vaultPath).map_err(|e| e.to_string())
+pub fn status_with_password(#[allow(non_snake_case)] vaultPath: String, password: String) -> Result<Vec<serde_json::Value>, String> {
+    get_status_with_password(vaultPath, password).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -433,16 +500,13 @@ pub async fn refresh_server_time(#[allow(non_snake_case)] vaultDir: String) -> R
     
     let meta_raw = fs::read(&meta_path).map_err(|e| e.to_string())?;
     let mut meta: VaultMetadata = serde_json::from_slice(&meta_raw).map_err(|e| e.to_string())?;
-    
-    // Fetch current server time
+        
     let (server_time, source) = fetch_public_unixtime_with_retries().await.map_err(|e| e.to_string())?;
     
-    // Check for time regression
     if meta.last_verified_time != 0 && server_time < meta.last_verified_time {
         return Err("Public time regression detected - possible attack".to_string());
     }
     
-    // Update metadata with new server time
     meta.last_verified_time = server_time;
     fs::write(&meta_path, serde_json::to_vec_pretty(&meta).map_err(|e| e.to_string())?)
         .map_err(|e| e.to_string())?;

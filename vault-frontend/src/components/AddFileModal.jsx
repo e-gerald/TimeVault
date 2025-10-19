@@ -28,17 +28,23 @@ export default function AddFileModal({
     setShowPasswordField(true);
   };
 
+  const handleBack = () => {
+
+    setPassword("");
+    setShowPasswordField(false);
+    setStatusMessage("");
+    setIsProcessing(false);
+  };
+
   const handleCancel = () => {
-    if (showPasswordField) {
-      // Go back one step: hide password field
-      setPassword("");
-      setShowPasswordField(false);
-      setStatusMessage("");
-      setIsProcessing(false);
-    } else {
-      // Close modal
-      setShowAddFile(false);
-    }
+
+    setShowAddFile(false);
+    setPassword("");
+    setShowPasswordField(false);
+    setStatusMessage("");
+    setIsProcessing(false);
+    setPickedFile("");
+    setFileUnlockDate(null);
   };
 
   const handleConfirm = async () => {
@@ -49,30 +55,27 @@ export default function AddFileModal({
     setIsProcessing(true);
     setStatusMessage("Verifying vault password...");
     try {
-      // Only verify password
+
       await verifyPassword(password, (status) => {
         setStatusMessage(status);
       });
       setStatusMessage("Password verified successfully");
-      
-      // Save password before clearing it
+
       const verifiedPassword = password;
       
-      // Close modal after a brief delay and pass password to parent
       setTimeout(() => {
         setShowAddFile(false);
         setPassword("");
         setShowPasswordField(false);
         setStatusMessage("");
         setIsProcessing(false);
-        // Notify parent that password was verified so it can proceed with file addition
+
         if (onPasswordVerified) {
           onPasswordVerified(verifiedPassword);
         }
       }, 500);
     } catch (error) {
       console.error('Password verification failed:', error);
-      // Show error message in status
       const errorMsg = error?.message || error || "An error occurred";
       setStatusMessage(errorMsg);
       setIsProcessing(false);
@@ -107,7 +110,7 @@ export default function AddFileModal({
             zIndex: 100000
           }}
         >
-          {/* Close button */}
+
           <button
             onClick={handleCancel}
             className="absolute disabled:opacity-50 text-3xl font-light leading-none"
@@ -125,7 +128,7 @@ export default function AddFileModal({
           </h2>
 
           <div className="space-y-4 max-w-[400px] mx-auto">
-            {/* File Selection */}
+
             <div>
               <label className="block text-sm font-medium mb-2 dark:text-gray-200">
                 File
@@ -151,7 +154,6 @@ export default function AddFileModal({
               </div>
             </div>
 
-            {/* Unlock Date */}
             <div>
               <label className="block text-sm font-medium mb-2 dark:text-gray-200">
                 Unlock Date and Time
@@ -170,7 +172,6 @@ export default function AddFileModal({
               />
             </div>
 
-            {/* Password Field - Shows after Add File is clicked */}
             {showPasswordField && (
               <div>
                 <label className="block text-sm font-medium mb-2 dark:text-gray-200">
@@ -191,7 +192,6 @@ export default function AddFileModal({
               </div>
             )}
 
-            {/* Status Message - Shows current operation status */}
             {showPasswordField && statusMessage && (
               <div className="mt-3">
                 <div className="flex items-center gap-2 text-xs font-mono text-gray-700 dark:text-gray-300">
@@ -216,11 +216,10 @@ export default function AddFileModal({
             )}
           </div>
 
-          {/* Action Buttons */}
           <div className="flex justify-end gap-3 mt-6 max-w-[400px] mx-auto">
             {showPasswordField && (
               <button
-                onClick={handleCancel}
+                onClick={handleBack}
                 className="px-5 py-2 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-800 text-sm dark:text-gray-200"
                 disabled={isProcessing}
               >

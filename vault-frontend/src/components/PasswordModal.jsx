@@ -44,7 +44,7 @@ export default function PasswordModal({
       }}
     >
       <div className="bg-white dark:bg-[#0f0f15] rounded-2xl p-6 w-96 max-w-[90vw] border border-gray-200 dark:border-gray-700 relative">
-        {/* Close button */}
+
         <button
           onClick={handleClose}
           disabled={isProcessing}
@@ -66,7 +66,7 @@ export default function PasswordModal({
             <label className="block text-sm font-medium mb-2 dark:text-gray-200">
               Vault Password
             </label>
-            <div className="relative">
+            <div className="relative" style={{ border: 'none', background: 'transparent', padding: 0, margin: 0 }}>
               <input
                 type={showPassword ? "text" : "password"}
                 value={password}
@@ -122,4 +122,3 @@ export default function PasswordModal({
 
   return createPortal(modalContent, document.body);
 }
-

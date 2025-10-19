@@ -2,9 +2,6 @@ import React from "react";
 import { Sun, Moon } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 
-/**
- * ToggleSwitch - clean toggle with moving knob + icons
- */
 export default function ToggleSwitch() {
   const { dark, setDark } = useTheme();
   const toggle = () => setDark(!dark);
@@ -18,7 +15,6 @@ export default function ToggleSwitch() {
         dark ? "bg-indigo-600" : "bg-gray-300"
       }`}
     >
-      {/* knob */}
       <span
         className={`absolute left-0.5 top-0.5 h-5 w-5 flex items-center justify-center rounded-full bg-white shadow transform transition-transform duration-300 ${
           dark ? "translate-x-6" : "translate-x-0"

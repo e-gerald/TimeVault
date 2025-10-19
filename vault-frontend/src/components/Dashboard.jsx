@@ -11,18 +11,18 @@ export default function Dashboard({
   unlockAll, 
   unlockSingle,
   onExit,
-  pickFileForAdd 
+  pickFileForAdd,
+  onPasswordVerified
 }) {
   const [password, setPassword] = useState("");
   const [showPasswordField, setShowPasswordField] = useState(false);
-  const [passwordAction, setPasswordAction] = useState(null); // 'unlock-file' or 'unlock-vault'
+  const [passwordAction, setPasswordAction] = useState(null); 
   const [selectedFile, setSelectedFile] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [wiggling, setWiggling] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
   const logContainerRef = useRef(null);
 
-  // Helper to check if file is unlocked based on server time
   const isFileUnlocked = (file) => {
     const serverTime = vaultInfo?.last_server_time;
     const fileUnlockDate = file.file_unlock_date || file.unlock_time || file.unlockDate;
@@ -39,13 +39,11 @@ export default function Dashboard({
       return false;
     }
     
-    // Parse server time (could be unix timestamp or ISO string)
     const serverUnix = typeof serverTime === 'number' ? serverTime : 
                        typeof serverTime === 'string' && /^\d+$/.test(serverTime.trim()) ? 
                        parseInt(serverTime.trim()) : 
                        Math.floor(new Date(serverTime).getTime() / 1000);
     
-    // Parse file unlock date (unix timestamp)
     const fileUnix = typeof fileUnlockDate === 'number' ? fileUnlockDate : parseInt(fileUnlockDate);
     
     console.log("Comparison:", {
@@ -59,7 +57,6 @@ export default function Dashboard({
     return serverUnix >= fileUnix;
   };
 
-  // Auto-scroll to bottom when log updates
   useEffect(() => {
     if (logContainerRef.current) {
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
@@ -136,6 +133,12 @@ export default function Dashboard({
           setStatusMessage(status);
         });
       }
+      
+      // Cache the password for future status checks
+      if (onPasswordVerified) {
+        onPasswordVerified(password);
+      }
+      
       setStatusMessage("Success!");
       setTimeout(() => {
         setPassword("");
@@ -163,7 +166,6 @@ export default function Dashboard({
               </h1>
             </div>
             
-            {/* Exit button */}
             <div className="flex items-center">
               <button
                 onClick={onExit}
@@ -194,7 +196,6 @@ export default function Dashboard({
             </div>
           </div>
           
-          {/* Refresh Status Button - on new line inside header */}
           <div className="mt-4">
             <button
               onClick={handleRefreshStatus}
@@ -225,9 +226,8 @@ export default function Dashboard({
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="py-6 max-w-7xl mx-auto px-12" style={{ paddingBottom: log ? '8rem' : '1.5rem', marginLeft: '10px', marginRight: '10px' }}>
-        {/* Files Table */}
+
         <div className="flex justify-center mb-6">
           <div className="bg-white dark:bg-[#1a1a24] shadow rounded-lg w-full max-w-4xl">
             <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: '340px', scrollbarWidth: 'thin' }}>
@@ -248,7 +248,7 @@ export default function Dashboard({
               <tbody className="bg-white dark:bg-[#1a1a24] divide-y divide-gray-200 dark:divide-gray-700">
                 {Array.isArray(files) && files.length > 0 ? (
                   [...files].sort((a, b) => {
-                    // Sort by creation time if available, otherwise by unlock date, newest first
+
                     const aTime = a.created_at || a.created || a.file_unlock_date || a.unlock_time || a.unlockDate || 0;
                     const bTime = b.created_at || b.created || b.file_unlock_date || b.unlock_time || b.unlockDate || 0;
                     return bTime - aTime; // Descending order (newest first)
@@ -302,7 +302,6 @@ export default function Dashboard({
           </div>
         </div>
 
-        {/* Action Buttons - Right under table */}
         <div className="flex justify-center mb-6" style={{ marginTop: '40px' }}>
           <div className="flex items-center justify-center gap-64 py-12 px-12 w-full">
             {!showPasswordField ? (
@@ -373,7 +372,7 @@ export default function Dashboard({
                     </button>
                   </div>
                 </div>
-                {/* Status Message - Shows current operation status */}
+
                 {statusMessage && (
                   <div className="mt-3">
                     <div className="flex items-center gap-2 text-xs font-mono text-gray-700 dark:text-gray-300">
@@ -403,7 +402,6 @@ export default function Dashboard({
 
       </div>
 
-      {/* Activity Log - Separate container */}
       {log && !showPasswordField && (
         <div className="fixed left-4 right-4 bg-white dark:bg-[#1a1a24] shadow-lg rounded-lg overflow-hidden" style={{ zIndex: 5, bottom: '60px', marginLeft: '10px', marginRight: '10px' }}>
           <div className="px-4 py-3">
@@ -421,7 +419,6 @@ export default function Dashboard({
         </div>
       )}
 
-      {/* Wiggle Animation */}
       <style>{`
         @keyframes wiggle {
           0%, 100% { transform: translateX(0); }

@@ -2,7 +2,6 @@ import React from "react";
 import { useTheme } from "../context/ThemeContext";
 
 export default function Header({ visible = true }) {
-  // support both toggle() or setDark(...) shapes
   const theme = useTheme() || { dark: false, toggle: undefined, setDark: undefined };
   const dark = !!theme.dark;
 
@@ -15,7 +14,6 @@ export default function Header({ visible = true }) {
 
   return (
     <div
-      // fixed at viewport top-right; high z so it won't be affected by container stacking
       style={{ position: "fixed", top: 16, right: 16, left: "auto", zIndex: 9999 }}
       aria-hidden={false}
     >
