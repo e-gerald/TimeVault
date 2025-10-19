@@ -195,9 +195,6 @@ export default function AddFileModal({
             {showPasswordField && statusMessage && (
               <div className="mt-3">
                 <div className="flex items-center gap-2 text-xs font-mono text-gray-700 dark:text-gray-300">
-                  {isProcessing && statusMessage !== "Success!" && !statusMessage.startsWith("Error") && (
-                    <span className="inline-block animate-pulse">⋯</span>
-                  )}
                   {statusMessage === "Success!" && (
                     <span className="text-green-600 dark:text-green-400">✓</span>
                   )}
@@ -211,6 +208,9 @@ export default function AddFileModal({
                       ? "text-red-600 dark:text-red-400"
                       : ""
                   }>{statusMessage}</span>
+                  {isProcessing && statusMessage !== "Success!" && !statusMessage.startsWith("Error") && (
+                    <span className="inline-block animate-pulse">⋯</span>
+                  )}
                 </div>
               </div>
             )}

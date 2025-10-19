@@ -194,21 +194,21 @@ export default function Dashboard({
       </div>
 
       {/* Main Content */}
-      <div className="py-6 max-w-7xl mx-auto px-12" style={{ paddingBottom: log ? '12rem' : '1.5rem' }}>
+      <div className="py-6 max-w-7xl mx-auto px-12" style={{ paddingBottom: log ? '8rem' : '1.5rem' }}>
         {/* Files Table */}
         <div className="flex justify-center mb-6">
-          <div className="bg-white dark:bg-[#1a1a24] shadow rounded-lg overflow-hidden">
-            <div className="overflow-x-auto max-h-96 overflow-y-auto">
+          <div className="bg-white dark:bg-[#1a1a24] shadow rounded-lg w-full max-w-4xl">
+            <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: '400px', scrollbarWidth: 'thin' }}>
               <table className="w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     File Name
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Unlock Date
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Action
                   </th>
                 </tr>
@@ -217,13 +217,13 @@ export default function Dashboard({
                 {Array.isArray(files) && files.length > 0 ? (
                   files.map((file, index) => (
                     <tr key={index}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100 text-center">
                         {file.name || file.filename || `File ${index + 1}`}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center">
                         {formatDate(file.file_unlock_date || file.unlock_time || file.unlockDate)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
                         {isFileUnlocked(file) ? (
                           <button
                             onClick={() => handleUnlockFile(file)}
@@ -263,13 +263,9 @@ export default function Dashboard({
           </div>
         </div>
 
-      </div>
-
-      {/* Footer - Action Buttons & Activity Log */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-[#1a1a24] border-t border-gray-200 dark:border-gray-700 shadow-lg mx-4 mb-4 rounded-lg">
-        <div className="py-4">
-          {/* Action Buttons or Password Input */}
-          <div className="flex items-center justify-center gap-4 mb-4 px-12">
+        {/* Action Buttons - Right under table */}
+        <div className="flex justify-center mb-6" style={{ marginTop: '40px' }}>
+          <div className="flex items-center justify-center gap-4 py-4 px-12">
             {!showPasswordField ? (
               <>
                 <button
@@ -356,24 +352,27 @@ export default function Dashboard({
               </div>
             )}
           </div>
-
-          {/* Activity Log - Only show when password field is NOT visible */}
-          {log && !showPasswordField && (
-            <div className="px-12">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                  Activity Log
-                </h3>
-              </div>
-              <div ref={logContainerRef} className="overflow-y-auto" style={{ maxHeight: '7.5rem' }}>
-                <pre className="text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-mono">
-                  {log}
-                </pre>
-              </div>
-            </div>
-          )}
         </div>
+
       </div>
+
+      {/* Activity Log - Separate container */}
+      {log && !showPasswordField && (
+        <div className="fixed bottom-4 left-4 right-4 bg-white dark:bg-[#1a1a24] shadow-lg rounded-lg overflow-hidden" style={{ zIndex: 5 }}>
+          <div className="px-4 py-3">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                Activity Log
+              </h3>
+            </div>
+            <div ref={logContainerRef} className="overflow-y-auto" style={{ maxHeight: '7.5rem' }}>
+              <pre className="text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-mono break-all overflow-x-auto">
+                {log}
+              </pre>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Wiggle Animation */}
       <style>{`

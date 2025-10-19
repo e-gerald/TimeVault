@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import Header from "./components/Header";
 import VaultInitializer from "./components/VaultInitializer";
 import AddFileModal from "./components/AddFileModal";
+import FileExistsDialog from "./components/FileExistsDialog";
 import Dashboard from "./components/Dashboard";
 import "./styles/datetimepicker.css";
 import { useTheme } from "./context/ThemeContext";
@@ -31,6 +32,16 @@ export default function App() {
   const [fileUnlockDate, setFileUnlockDate] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
+  
+  // File exists dialog state
+  const [showFileExistsDialog, setShowFileExistsDialog] = useState(false);
+  const [fileExistsData, setFileExistsData] = useState({
+    existingFilename: "",
+    newFilename: "",
+    fileToAdd: "",
+    unlockDate: null,
+    password: ""
+  });
 
   // Auto-open modal when file is picked (only when coming from dashboard)
   useEffect(() => {
@@ -71,12 +82,16 @@ export default function App() {
   }, [showCreate]);
 
   // Vault helpers
-  async function refreshVaultStatus(path) {
+  async function refreshVaultStatus(path, silent = false) {
     try {
-      appendLog("Verifying saved files...");
+      if (!silent) {
+        appendLog("Verifying saved files...");
+      }
       const res = await tauriInvoke("status", { vaultPath: path });
       setFiles(Array.isArray(res) ? res : []);
-      appendLog("Files verified successfully");
+      if (!silent) {
+        appendLog("Files verified successfully");
+      }
     } catch (e) {
       console.error("refreshVaultStatus", e);
       appendLog("Error refreshing status: " + (e?.message || e));
@@ -263,8 +278,7 @@ export default function App() {
       });
 
       appendLog(`File added: ${fileToAdd.split(/[\\/]/).pop()}`);
-      await refreshVaultStatus(vaultPath);
-      await refreshVaultInfo(vaultPath); // Update server time after adding file
+      await refreshVaultStatus(vaultPath, true);
     } catch (e) {
       console.error("addFileToVault", e);
       const errorMsg = e?.message || e;
@@ -274,57 +288,70 @@ export default function App() {
         const existingFilename = errorMsg.split(":")[1];
         const newFilename = serializeFilename(existingFilename, 1);
         
-        // Ask user what to do
-        const userChoice = confirm(
-          `A file named "${existingFilename}" already exists in the vault.\n\n` +
-          `Click OK to keep both files (will rename new file to "${newFilename}"), ` +
-          `or Cancel to stop adding this file.`
-        );
-        
-        if (userChoice) {
-          // User chose to rename - try with serialized filenames
-          let attemptNumber = 1;
-          let success = false;
-          
-          while (attemptNumber <= 10 && !success) {
-            try {
-              const originalFilename = fileToAdd.split(/[\\/]/).pop();
-              const serializedFilename = serializeFilename(originalFilename, attemptNumber);
-              appendLog(`Trying with serialized name: ${serializedFilename}`);
-              
-              await tauriInvoke("add_file_with_custom_name", {
-                vaultDir: vaultPath,
-                filePath: fileToAdd,
-                password,
-                fileUnlockDate: unlockUnix,
-                customFilename: serializedFilename,
-              });
-              
-              appendLog(`File added: ${serializedFilename}`);
-              await refreshVaultStatus(vaultPath);
-              await refreshVaultInfo(vaultPath);
-              success = true;
-            } catch (retryError) {
-              const retryMsg = retryError?.message || retryError;
-              if (retryMsg.startsWith("FILE_EXISTS:")) {
-                attemptNumber++;
-              } else {
-                // Different error, rethrow
-                throw retryError;
-              }
-            }
-          }
-          
-          if (!success) {
-            appendLog("Error: Unable to add file - too many files with similar names exist");
-          }
-        } else {
-          appendLog("File add cancelled by user");
-        }
+        // Show dialog instead of confirm()
+        appendLog(`FILE_EXISTS error detected for: ${existingFilename}`);
+        setFileExistsData({
+          existingFilename,
+          newFilename,
+          fileToAdd,
+          unlockDate,
+          password
+        });
+        setShowFileExistsDialog(true);
+        return; // Exit function, dialog will handle the rest
       } else {
         appendLog("Error: " + errorMsg);
       }
     }
+  };
+
+  // Handle file exists dialog actions
+  const handleFileExistsRename = async () => {
+    const { fileToAdd, unlockDate, password } = fileExistsData;
+    const unlockUnix = Math.floor(unlockDate.getTime() / 1000);
+    
+    setShowFileExistsDialog(false);
+    
+    // Try with serialized filenames
+    let attemptNumber = 1;
+    let success = false;
+    
+    while (attemptNumber <= 10 && !success) {
+      try {
+        const originalFilename = fileToAdd.split(/[\\/]/).pop();
+        const serializedFilename = serializeFilename(originalFilename, attemptNumber);
+        appendLog(`Trying with serialized name: ${serializedFilename}`);
+        
+        await tauriInvoke("add_file_with_custom_name", {
+          vaultDir: vaultPath,
+          filePath: fileToAdd,
+          password,
+          fileUnlockDate: unlockUnix,
+          customFilename: serializedFilename,
+        });
+        
+        appendLog(`File added: ${serializedFilename}`);
+        await refreshVaultStatus(vaultPath, true);
+        success = true;
+      } catch (retryError) {
+        const retryMsg = retryError?.message || retryError;
+        if (retryMsg.startsWith("FILE_EXISTS:")) {
+          attemptNumber++;
+        } else {
+          // Different error, rethrow
+          throw retryError;
+        }
+      }
+    }
+    
+    if (!success) {
+      appendLog("Error: Unable to add file - too many files with similar names exist");
+    }
+  };
+
+  const handleFileExistsCancel = () => {
+    setShowFileExistsDialog(false);
+    appendLog("File add cancelled by user");
   };
 
   // Unlock single vault file
@@ -544,6 +571,16 @@ export default function App() {
           addFileToVault(password, fileToAdd, unlockDate);
         }}
         pickFileForAdd={pickFileForAdd}
+      />
+    )}
+
+    {showFileExistsDialog && (
+      <FileExistsDialog
+        isOpen={showFileExistsDialog}
+        existingFilename={fileExistsData.existingFilename}
+        newFilename={fileExistsData.newFilename}
+        onRename={handleFileExistsRename}
+        onCancel={handleFileExistsCancel}
       />
     )}
     </>
