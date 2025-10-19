@@ -111,7 +111,7 @@ export default function AddFileModal({
           <button
             onClick={handleCancel}
             className="absolute disabled:opacity-50 text-3xl font-light leading-none"
-            style={{ top: '1rem', right: '1rem', left: 'auto', color: '#ef4444' }}
+            style={{ top: '1rem', right: '1rem', left: 'auto', color: '#ef4444', zIndex: 1000001 }}
             onMouseEnter={(e) => e.target.style.color = '#dc2626'}
             onMouseLeave={(e) => e.target.style.color = '#ef4444'}
             aria-label="Close"

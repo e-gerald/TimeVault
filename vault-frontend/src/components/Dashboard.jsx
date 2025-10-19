@@ -198,7 +198,7 @@ export default function Dashboard({
         {/* Files Table */}
         <div className="flex justify-center mb-6">
           <div className="bg-white dark:bg-[#1a1a24] shadow rounded-lg w-full max-w-4xl">
-            <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: '400px', scrollbarWidth: 'thin' }}>
+            <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: '340px', scrollbarWidth: 'thin' }}>
               <table className="w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
                 <tr>
@@ -215,7 +215,12 @@ export default function Dashboard({
               </thead>
               <tbody className="bg-white dark:bg-[#1a1a24] divide-y divide-gray-200 dark:divide-gray-700">
                 {Array.isArray(files) && files.length > 0 ? (
-                  files.map((file, index) => (
+                  [...files].sort((a, b) => {
+                    // Sort by creation time if available, otherwise by unlock date, newest first
+                    const aTime = a.created_at || a.created || a.file_unlock_date || a.unlock_time || a.unlockDate || 0;
+                    const bTime = b.created_at || b.created || b.file_unlock_date || b.unlock_time || b.unlockDate || 0;
+                    return bTime - aTime; // Descending order (newest first)
+                  }).map((file, index) => (
                     <tr key={index}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100 text-center">
                         {file.name || file.filename || `File ${index + 1}`}
@@ -358,7 +363,7 @@ export default function Dashboard({
 
       {/* Activity Log - Separate container */}
       {log && !showPasswordField && (
-        <div className="fixed bottom-4 left-4 right-4 bg-white dark:bg-[#1a1a24] shadow-lg rounded-lg overflow-hidden" style={{ zIndex: 5 }}>
+        <div className="fixed left-4 right-4 bg-white dark:bg-[#1a1a24] shadow-lg rounded-lg overflow-hidden" style={{ zIndex: 5, bottom: '84px' }}>
           <div className="px-4 py-3">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">

@@ -12,21 +12,22 @@ export default function FileExistsDialog({
 
   const modalContent = (
     <div 
-      className="fixed inset-0 flex items-center justify-center z-[9999]"
+      className="fixed inset-0 flex items-center justify-center"
       style={{
         position: 'fixed',
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        zIndex: 100001,
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        zIndex: 999999,
+        backgroundColor: '#000000',
+        opacity: 0.6,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center'
       }}
     >
-      <div className="bg-white dark:bg-[#0f0f15] rounded-2xl p-6 w-96 max-w-[90vw] border border-gray-200 dark:border-gray-700 relative">
+      <div className="bg-white dark:bg-[#0f0f15] rounded-2xl p-6 w-96 max-w-[90vw] border border-gray-200 dark:border-gray-700 relative" style={{ zIndex: 1000000 }}>
         <h2 className="text-xl font-semibold text-center mb-6 dark:text-gray-100">
           File Already Exists
         </h2>
