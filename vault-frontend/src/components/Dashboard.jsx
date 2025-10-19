@@ -155,7 +155,7 @@ export default function Dashboard({
     <div className="min-h-screen bg-gray-50 dark:bg-[#0f0f15]">
       {/* Header */}
       <div className="bg-white dark:bg-[#1a1a24] border-b border-gray-200 dark:border-gray-700">
-        <div className="px-12 py-5 max-w-7xl mx-auto">
+        <div className="px-12 py-5 max-w-7xl mx-auto" style={{ marginLeft: '10px', marginRight: '10px' }}>
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100" title={vaultPath}>
@@ -167,7 +167,23 @@ export default function Dashboard({
             <div className="flex items-center">
               <button
                 onClick={onExit}
-                className="inline-flex items-center px-4 py-2 border border-red-300 dark:border-red-600 rounded-md text-sm font-medium text-red-600 dark:text-red-400 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20"
+                className="inline-flex items-center px-8 py-4 border-2 rounded-lg text-base font-bold transition-all duration-200 shadow-lg hover:shadow-xl"
+                style={{ 
+                  borderColor: '#ef4444', 
+                  color: '#dc2626', 
+                  backgroundColor: '#fef2f2',
+                  borderRadius: '8px'
+                }}
+                onMouseEnter={(e) => { 
+                  e.target.style.backgroundColor = '#fee2e2'; 
+                  e.target.style.color = '#b91c1c'; 
+                  e.target.style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={(e) => { 
+                  e.target.style.backgroundColor = '#fef2f2'; 
+                  e.target.style.color = '#dc2626'; 
+                  e.target.style.transform = 'translateY(0)';
+                }}
                 title="Exit Vault"
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -182,7 +198,23 @@ export default function Dashboard({
           <div className="mt-4">
             <button
               onClick={handleRefreshStatus}
-              className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-xs font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
+            className="inline-flex items-center px-4 py-2 border-2 rounded-lg text-sm font-semibold transition-all duration-200 shadow-md hover:shadow-lg"
+            style={{
+              borderColor: '#3b82f6',
+              color: '#1d4ed8',
+              backgroundColor: '#dbeafe',
+              borderRadius: '8px'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = '#bfdbfe';
+              e.target.style.color = '#1e40af';
+              e.target.style.transform = 'translateY(-1px)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = '#dbeafe';
+              e.target.style.color = '#1d4ed8';
+              e.target.style.transform = 'translateY(0)';
+            }}
             >
               <svg className="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -194,7 +226,7 @@ export default function Dashboard({
       </div>
 
       {/* Main Content */}
-      <div className="py-6 max-w-7xl mx-auto px-12" style={{ paddingBottom: log ? '8rem' : '1.5rem' }}>
+      <div className="py-6 max-w-7xl mx-auto px-12" style={{ paddingBottom: log ? '8rem' : '1.5rem', marginLeft: '10px', marginRight: '10px' }}>
         {/* Files Table */}
         <div className="flex justify-center mb-6">
           <div className="bg-white dark:bg-[#1a1a24] shadow rounded-lg w-full max-w-4xl">
@@ -232,23 +264,25 @@ export default function Dashboard({
                         {isFileUnlocked(file) ? (
                           <button
                             onClick={() => handleUnlockFile(file)}
-                            className="inline-flex items-center px-4 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium transition-colors"
+                            className="inline-flex items-center px-6 py-3 rounded-lg text-sm font-semibold transition-all duration-200 shadow-md hover:shadow-lg"
+                            style={{ backgroundColor: '#10b981', borderRadius: '8px', color: '#ffffff' }}
+                            onMouseEnter={(e) => { e.target.style.backgroundColor = '#059669'; e.target.style.transform = 'translateY(-1px)'; }}
+                            onMouseLeave={(e) => { e.target.style.backgroundColor = '#10b981'; e.target.style.transform = 'translateY(0)'; }}
                           >
-                            <svg className="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
-                            </svg>
+                            <span className="text-lg mr-2">🔓</span>
                             Open
                           </button>
                         ) : (
                           <button
                             onClick={() => handleLockedClick(index)}
-                            className={`inline-flex items-center px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium cursor-not-allowed transition-all ${
+                            className={`inline-flex items-center px-6 py-3 rounded-lg text-sm font-semibold cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg ${
                               wiggling === index ? 'animate-wiggle' : ''
                             }`}
+                            style={{ backgroundColor: '#ef4444', borderRadius: '8px', color: '#ffffff' }}
+                            onMouseEnter={(e) => { e.target.style.backgroundColor = '#dc2626'; e.target.style.transform = 'translateY(-1px)'; }}
+                            onMouseLeave={(e) => { e.target.style.backgroundColor = '#ef4444'; e.target.style.transform = 'translateY(0)'; }}
                           >
-                            <svg className="w-3 h-3 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                            </svg>
+                            <span className="text-lg mr-2">🔒</span>
                             Locked
                           </button>
                         )}
@@ -270,7 +304,7 @@ export default function Dashboard({
 
         {/* Action Buttons - Right under table */}
         <div className="flex justify-center mb-6" style={{ marginTop: '40px' }}>
-          <div className="flex items-center justify-center gap-4 py-4 px-12">
+          <div className="flex items-center justify-center gap-64 py-12 px-12 w-full">
             {!showPasswordField ? (
               <>
                 <button
@@ -279,14 +313,20 @@ export default function Dashboard({
                       await pickFileForAdd();
                     }
                   }}
-                  className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold rounded-lg text-white bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-xl border-2 border-blue-700 hover:border-blue-800 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+                  className="inline-flex items-center justify-center px-20 py-10 rounded-xl text-3xl font-bold shadow-4xl hover:shadow-5xl border-6 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+                  style={{ backgroundColor: '#3b82f6', borderColor: '#2563eb', borderRadius: '12px', borderWidth: '6px', color: '#ffffff' }}
+                  onMouseEnter={(e) => { e.target.style.backgroundColor = '#2563eb'; e.target.style.borderColor = '#1d4ed8'; }}
+                  onMouseLeave={(e) => { e.target.style.backgroundColor = '#3b82f6'; e.target.style.borderColor = '#2563eb'; }}
                 >
                   <span className="text-base mr-1.5 font-bold">+</span>
                   Add New File
                 </button>
                 <button
                   onClick={handleUnlockVault}
-                  className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold rounded-lg text-white bg-green-600 hover:bg-green-700 shadow-md hover:shadow-xl border-2 border-green-700 hover:border-green-800 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+                  className="inline-flex items-center justify-center px-20 py-10 rounded-xl text-3xl font-bold shadow-4xl hover:shadow-5xl border-6 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+                  style={{ backgroundColor: '#10b981', borderColor: '#059669', borderRadius: '12px', borderWidth: '6px', color: '#ffffff' }}
+                  onMouseEnter={(e) => { e.target.style.backgroundColor = '#059669'; e.target.style.borderColor = '#047857'; }}
+                  onMouseLeave={(e) => { e.target.style.backgroundColor = '#10b981'; e.target.style.borderColor = '#059669'; }}
                 >
                   <span className="text-xs mr-1.5">🔓</span>
                   Unlock Vault
@@ -294,12 +334,12 @@ export default function Dashboard({
               </>
             ) : (
               <div className="w-full max-w-2xl mx-auto space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex-1">
+                <div className="flex items-end gap-3 justify-center">
+                  <div>
                     <label className="block text-xs font-medium mb-1 dark:text-gray-200">
                       {passwordAction === 'unlock-file' 
-                        ? `Vault Password (to unlock ${selectedFile?.filename || selectedFile?.name || 'file'})` 
-                        : 'Vault Password (to unlock all files)'}
+                        ? `Enter Vault Password to unlock ${selectedFile?.filename || selectedFile?.name || 'file'}` 
+                        : 'Unlock All Available Files'}
                     </label>
                     <input
                       type="password"
@@ -307,25 +347,27 @@ export default function Dashboard({
                       onChange={(e) => setPassword(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && handleConfirmPassword()}
                       placeholder="Enter vault password"
-                      className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 dark:text-gray-100 px-3 text-sm"
-                      style={{ height: '32px', lineHeight: '32px', paddingTop: 0, paddingBottom: 0 }}
+                      className="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 dark:text-gray-100 px-3 text-sm"
+                      style={{ height: '32px', lineHeight: '32px', paddingTop: 0, paddingBottom: 0, width: '300px' }}
                       autoComplete="current-password"
                       disabled={isProcessing}
                       autoFocus
                     />
                   </div>
-                  <div className="flex gap-2 pt-5">
+                  <div className="flex gap-3" style={{ marginLeft: '4px' }}>
                     <button
                       onClick={handleCancelPassword}
                       disabled={isProcessing}
-                      className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-800 text-sm dark:text-gray-200 disabled:opacity-50"
+                      className="px-6 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-sm font-semibold dark:text-gray-200 disabled:opacity-50 transition-all duration-200"
+                      style={{ height: '32px', lineHeight: '32px' }}
                     >
                       Cancel
                     </button>
                     <button
                       onClick={handleConfirmPassword}
                       disabled={isProcessing}
-                      className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm disabled:opacity-50"
+                      className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-semibold disabled:opacity-50 transition-all duration-200 shadow-md hover:shadow-lg"
+                      style={{ height: '32px', lineHeight: '32px' }}
                     >
                       {isProcessing ? "Processing..." : "Confirm"}
                     </button>
@@ -363,7 +405,7 @@ export default function Dashboard({
 
       {/* Activity Log - Separate container */}
       {log && !showPasswordField && (
-        <div className="fixed left-4 right-4 bg-white dark:bg-[#1a1a24] shadow-lg rounded-lg overflow-hidden" style={{ zIndex: 5, bottom: '84px' }}>
+        <div className="fixed left-4 right-4 bg-white dark:bg-[#1a1a24] shadow-lg rounded-lg overflow-hidden" style={{ zIndex: 5, bottom: '60px', marginLeft: '10px', marginRight: '10px' }}>
           <div className="px-4 py-3">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
