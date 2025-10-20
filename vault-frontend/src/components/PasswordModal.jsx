@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
+import { useTheme } from "../context/ThemeContext";
 
 export default function PasswordModal({ 
   isOpen, 
@@ -8,42 +9,52 @@ export default function PasswordModal({
   title = "Enter Password",
   isProcessing = false 
 }) {
+  const { dark } = useTheme();
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
 
   if (!isOpen) return null;
 
   const handleSubmit = () => {
-    if (password) {
+    if (password && !isProcessing) {
       onSubmit(password);
       setPassword("");
-      setShowPassword(false);
     }
   };
 
   const handleClose = () => {
     setPassword("");
-    setShowPassword(false);
     onClose();
   };
 
   const modalContent = (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]"
       style={{
         position: 'fixed',
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        zIndex: 100001,
+        zIndex: 1000000,
         backgroundColor: 'rgba(0, 0, 0, 0.6)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center'
       }}
     >
-      <div className="bg-white dark:bg-[#0f0f15] rounded-2xl p-6 w-96 max-w-[90vw] border border-gray-200 dark:border-gray-700 relative">
+      <div 
+        className="w-96 max-w-[90vw] relative"
+        style={{
+          zIndex: 1000001,
+          backgroundColor: dark ? '#0f0f15' : '#ffffff',
+          padding: '2rem',
+          borderRadius: '20px',
+          border: `1px solid ${dark ? '#374151' : '#e5e7eb'}`,
+          boxShadow: dark 
+            ? '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05)' 
+            : '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05)',
+          backdropFilter: 'blur(8px)'
+        }}
+      >
 
         <button
           onClick={handleClose}
@@ -57,65 +68,95 @@ export default function PasswordModal({
           ×
         </button>
 
-        <h2 className="text-xl font-semibold text-center mb-6 dark:text-gray-100">
+        <h2 className="text-xl font-semibold text-center dark:text-gray-100" style={{ marginBottom: '1.5rem' }}>
           {title}
         </h2>
 
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-2 dark:text-gray-200">
-              Vault Password
-            </label>
-            <div className="relative" style={{ border: 'none', background: 'transparent', padding: 0, margin: 0 }}>
+        <div style={{ marginBottom: '1.5rem' }}>
+          <div className="relative">
               <input
-                type={showPassword ? "text" : "password"}
+                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
                 placeholder="Enter vault password"
-                className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 dark:text-gray-100 px-3 pr-10 text-sm"
-                style={{ height: '38px' }}
+                className="w-full text-sm dark:text-gray-100 px-4"
+                style={{ 
+                  height: '44px',
+                  borderRadius: '12px',
+                  border: `1px solid ${dark ? '#4b5563' : '#d1d5db'}`,
+                  backgroundColor: dark ? '#374151' : '#ffffff',
+                  transition: 'all 0.2s ease-in-out',
+                  outline: 'none'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = dark ? '#6b7280' : '#9ca3af';
+                  e.target.style.boxShadow = dark 
+                    ? '0 0 0 3px rgba(107, 114, 128, 0.1)' 
+                    : '0 0 0 3px rgba(156, 163, 175, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = dark ? '#4b5563' : '#d1d5db';
+                  e.target.style.boxShadow = 'none';
+                }}
                 autoComplete="current-password"
                 disabled={isProcessing}
                 autoFocus
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                disabled={isProcessing}
-              >
-                {showPassword ? (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                  </svg>
-                ) : (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                )}
-              </button>
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 mt-6">
+          <div className="flex justify-end gap-3" style={{ marginTop: '1.5rem' }}>
             <button
               onClick={handleClose}
               disabled={isProcessing}
-              className="px-5 py-2 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-800 text-sm disabled:opacity-50 dark:text-gray-200"
+              className="px-6 py-2 text-sm disabled:opacity-50 dark:text-gray-200"
+              style={{
+                borderRadius: '10px',
+                border: `1px solid ${dark ? '#4b5563' : '#d1d5db'}`,
+                backgroundColor: dark ? '#374151' : '#ffffff',
+                color: dark ? '#e5e7eb' : '#374151',
+                transition: 'all 0.2s ease-in-out',
+                cursor: isProcessing ? 'not-allowed' : 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                if (!isProcessing) {
+                  e.target.style.backgroundColor = dark ? '#4b5563' : '#f9fafb';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = dark ? '#374151' : '#ffffff';
+              }}
             >
               Cancel
             </button>
             <button
               onClick={handleSubmit}
               disabled={isProcessing || !password}
-              className="px-5 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm disabled:opacity-50"
+              className="px-6 py-2 text-sm disabled:opacity-50"
+              style={{
+                borderRadius: '10px',
+                backgroundColor: isProcessing || !password ? '#9ca3af' : '#4f46e5',
+                color: '#ffffff',
+                border: 'none',
+                transition: 'all 0.2s ease-in-out',
+                cursor: isProcessing || !password ? 'not-allowed' : 'pointer',
+                boxShadow: isProcessing || !password ? 'none' : '0 4px 14px 0 rgba(79, 70, 229, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                if (!isProcessing && password) {
+                  e.target.style.backgroundColor = '#3730a3';
+                  e.target.style.boxShadow = '0 6px 20px 0 rgba(79, 70, 229, 0.4)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = isProcessing || !password ? '#9ca3af' : '#4f46e5';
+                e.target.style.boxShadow = isProcessing || !password ? 'none' : '0 4px 14px 0 rgba(79, 70, 229, 0.3)';
+              }}
             >
-              {isProcessing ? "Processing..." : "Submit"}
+              {isProcessing ? "Verifying..." : "Submit"}
             </button>
           </div>
-        </div>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import Header from "./components/Header";
 import VaultInitializer from "./components/VaultInitializer";
 import AddFileModal from "./components/AddFileModal";
 import FileExistsDialog from "./components/FileExistsDialog";
+import PasswordModal from "./components/PasswordModal";
 import Dashboard from "./components/Dashboard";
 import "./styles/datetimepicker.css";
 import { useTheme } from "./context/ThemeContext";
@@ -40,6 +41,9 @@ export default function App() {
     password: ""
   });
   const [cachedVaultPassword, setCachedVaultPassword] = useState("");
+  const [showVaultPasswordModal, setShowVaultPasswordModal] = useState(false);
+  const [pendingVaultPath, setPendingVaultPath] = useState("");
+  const [isVaultPasswordProcessing, setIsVaultPasswordProcessing] = useState(false);
 
   useEffect(() => {
     if (pickedFile && screen === "dashboard" && !showAddFile) {
@@ -152,10 +156,9 @@ export default function App() {
       const chosen = Array.isArray(path) ? path[0] : path;
       if (!chosen) return;
 
-      setVaultPath(chosen);
-      setScreen("dashboard");
-      await refreshVaultStatus(chosen);
-      await refreshVaultInfo(chosen);
+      // Store the vault path and show password modal
+      setPendingVaultPath(chosen);
+      setShowVaultPasswordModal(true);
       return chosen;
     } catch (e) {
       console.error("openExistingVault", e);
@@ -433,6 +436,41 @@ export default function App() {
     }
   };
 
+  const handleVaultPasswordSubmit = async (password) => {
+    setIsVaultPasswordProcessing(true);
+    try {
+      // Verify the password first
+      await tauriInvoke("verify_vault_password", {
+        vaultDir: pendingVaultPath,
+        password,
+      });
+      
+      // Password is valid, proceed to dashboard
+      setVaultPath(pendingVaultPath);
+      setCachedVaultPassword(password);
+      setShowVaultPasswordModal(false);
+      setPendingVaultPath("");
+      setScreen("dashboard");
+      setLog(""); // Clear any previous logs
+      
+      // Refresh vault status with the password
+      await refreshVaultStatus(pendingVaultPath, false, password);
+      await refreshVaultInfo(pendingVaultPath);
+    } catch (e) {
+      console.error("handleVaultPasswordSubmit", e);
+      appendLog("Invalid vault password. Please try again.");
+      // Keep the modal open for retry
+    } finally {
+      setIsVaultPasswordProcessing(false);
+    }
+  };
+
+  const handleVaultPasswordCancel = () => {
+    setShowVaultPasswordModal(false);
+    setPendingVaultPath("");
+    setIsVaultPasswordProcessing(false);
+  };
+
   const exitVault = () => {
     setCachedVaultPassword("");  // Clear cached password
     setVaultPath("");
@@ -576,6 +614,16 @@ export default function App() {
         newFilename={fileExistsData.newFilename}
         onRename={handleFileExistsRename}
         onCancel={handleFileExistsCancel}
+      />
+    )}
+
+    {showVaultPasswordModal && (
+      <PasswordModal
+        isOpen={showVaultPasswordModal}
+        onClose={handleVaultPasswordCancel}
+        onSubmit={handleVaultPasswordSubmit}
+        title="Enter Vault Password"
+        isProcessing={isVaultPasswordProcessing}
       />
     )}
     </>
