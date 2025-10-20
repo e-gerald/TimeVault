@@ -102,11 +102,11 @@ export default function App() {
         password: passwordToUse 
       });
       
-      // Check for tampering warnings and display them
+      // Check for tampering warnings and (optionally) display them
       if (Array.isArray(fileList)) {
         const tamperingWarningEntry = fileList.find(item => item._tampering_warnings);
-        if (tamperingWarningEntry && tamperingWarningEntry._tampering_warnings) {
-          // Display tampering warnings in activity log
+        if (!silent && tamperingWarningEntry && tamperingWarningEntry._tampering_warnings) {
+          // Display tampering warnings in activity log only when not silent
           tamperingWarningEntry._tampering_warnings.forEach(warning => {
             appendLog(warning);
           });
