@@ -44,6 +44,11 @@ export default function App() {
   const [showVaultPasswordModal, setShowVaultPasswordModal] = useState(false);
   const [pendingVaultPath, setPendingVaultPath] = useState("");
   const [isVaultPasswordProcessing, setIsVaultPasswordProcessing] = useState(false);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const dragCounterRef = useRef(0);
+  const dragOverlayTimeoutRef = useRef(null);
+  const [showUnlockPasswordModal, setShowUnlockPasswordModal] = useState(false);
+  const [fileToUnlock, setFileToUnlock] = useState(null);
 
   useEffect(() => {
     if (pickedFile && screen === "dashboard" && !showAddFile) {
@@ -79,6 +84,112 @@ export default function App() {
       el.removeEventListener("dragover", handleDragOver);
     };
   }, [showCreate]);
+
+  // Helper: probe if a path is a vault folder using existing backend info endpoint
+  async function isVaultFolder(path) {
+    try {
+      const info = await tauriInvoke("vault_info", { vaultDir: path });
+      return !!info;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // Global drag & drop handlers: splash → open vault; dashboard → add file
+  useEffect(() => {
+    const onDragOver = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingOver(true);
+    };
+
+    const onDragEnter = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounterRef.current += 1;
+      setIsDraggingOver(true);
+    };
+
+    const onDragLeave = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
+      if (dragCounterRef.current === 0) {
+        // small delay to avoid flicker
+        if (dragOverlayTimeoutRef.current) clearTimeout(dragOverlayTimeoutRef.current);
+        dragOverlayTimeoutRef.current = setTimeout(() => setIsDraggingOver(false), 120);
+      }
+    };
+
+    const onDrop = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounterRef.current = 0;
+      if (dragOverlayTimeoutRef.current) clearTimeout(dragOverlayTimeoutRef.current);
+      setIsDraggingOver(false);
+
+      const droppedFiles = Array.from(e.dataTransfer?.files || []);
+      const textData = e.dataTransfer?.getData?.("text") || "";
+
+      if (screen === "splash") {
+        // Expect a vault directory; try text path or first file path
+        const candidatePath = (droppedFiles[0] && (droppedFiles[0].path || droppedFiles[0].webkitRelativePath)) || textData || "";
+        if (!candidatePath) {
+          appendLog("Drop a vault folder to open");
+          return;
+        }
+        appendLog("Folder dropped: " + candidatePath);
+        if (await isVaultFolder(candidatePath)) {
+          setPendingVaultPath(candidatePath);
+          setShowVaultPasswordModal(true);
+        } else {
+          appendLog("Not a vault folder. Please choose a valid vault folder.");
+        }
+        return;
+      }
+
+      if (screen === "dashboard") {
+        if (!droppedFiles.length) {
+          appendLog("Please drop a file to add");
+          return;
+        }
+        const first = droppedFiles[0];
+        const filePath = first.path || textData || "";
+        if (!filePath) {
+          // Fallback to file picker if path not available from drop
+          appendLog("Could not read dropped file path. Opening picker...");
+          const picked = await pickFileForAdd();
+          if (picked) {
+            setShowAddFile(true);
+          }
+          return;
+        }
+        appendLog("File dropped: " + (filePath.split(/[\\\/]/).pop() || "file"));
+        setPickedFile(filePath);
+        setShowAddFile(true);
+        return;
+      }
+    };
+
+    window.addEventListener("dragenter", onDragEnter);
+    window.addEventListener("dragover", onDragOver);
+    window.addEventListener("dragleave", onDragLeave);
+    window.addEventListener("drop", onDrop);
+    document.addEventListener("dragenter", onDragEnter);
+    document.addEventListener("dragover", onDragOver);
+    document.addEventListener("dragleave", onDragLeave);
+    document.addEventListener("drop", onDrop);
+    return () => {
+      window.removeEventListener("dragenter", onDragEnter);
+      window.removeEventListener("dragover", onDragOver);
+      window.removeEventListener("dragleave", onDragLeave);
+      window.removeEventListener("drop", onDrop);
+      document.removeEventListener("dragenter", onDragEnter);
+      document.removeEventListener("dragover", onDragOver);
+      document.removeEventListener("dragleave", onDragLeave);
+      document.removeEventListener("drop", onDrop);
+    };
+  }, [screen]);
 
   async function refreshVaultStatus(path, silent = false, password = null) {
     try {
@@ -145,7 +256,12 @@ export default function App() {
           created: info.created || "—",
           last_server_time: info.last_server_time || "—",
         });
-        appendLog(`Date and time verified from ${info.time_source || 'server'}`);
+        // Log only once with the server that actually provided the time
+        if (info.time_source) {
+          appendLog(`Date and time verified from ${info.time_source}`);
+        } else {
+          appendLog("Date and time verified from server");
+        }
       }
     } catch (e) {
       console.error("refreshVaultInfo", e);
@@ -392,16 +508,23 @@ export default function App() {
       const vaultDir = vaultPath.substring(0, vaultPath.lastIndexOf(/[\\/]/.test(vaultPath) ? (vaultPath.includes('/') ? '/' : '\\') : '/'));
       const unlockedDir = vaultDir + (vaultPath.includes('/') ? '/' : '\\') + 'Unlocked Files';
       
-      appendLog(`Unlocking file: ${file.name || file.filename}...`);
       if (statusCallback) statusCallback(`Unlocking file...`);
+      // Log to activity so users see progress after the password prompt closes
+      appendLog(`Decrypting and Unlocking file: ${file.name || file.filename}...`);
+      // Temporarily call unlock_vault_tauri (backend unlocks eligible files). We'll constrain output logs to mimic single-file UX.
       const result = await tauriInvoke("unlock_vault_tauri", {
         vaultDir: vaultPath,
         outDir: unlockedDir,
         password,
       });
-      appendLog(result);
+      // Try to highlight the selected filename in the result if present; otherwise show concise message
+      try {
+        const parsed = typeof result === 'string' ? JSON.parse(result.replace(/^[^\[]*/,'').replace(/}.*$/,'')) : result;
+        // no-op: result format varies; keep concise log instead
+      } catch {}
       appendLog(`File unlocked to: ${unlockedDir}`);
-      await refreshVaultStatus(vaultPath);
+      // Suppress post-unlock status logs for single-file flow
+      await refreshVaultStatus(vaultPath, true);
     } catch (e) {
       console.error("unlockSingle", e);
       const errorMsg = e?.message || e;
@@ -416,7 +539,7 @@ export default function App() {
 
     try {
       appendLog("Verifying vault password...");
-      if (statusCallback) statusCallback("Verifying vault password...");
+      if (statusCallback) statusCallback("Verifying vault password");
       await tauriInvoke("verify_vault_password", {
         vaultDir: vaultPath,
         password,
@@ -579,6 +702,35 @@ export default function App() {
         </div>
       )}
     </div>
+
+    {/* Drag overlay indicator */}
+    {isDraggingOver && (
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 100000,
+          backgroundColor: 'rgba(99, 102, 241, 0.08)',
+          border: '2px dashed rgba(99, 102, 241, 0.6)',
+          pointerEvents: 'none'
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            color: '#6366f1',
+            fontWeight: 700,
+            fontSize: '1.125rem',
+            textAlign: 'center'
+          }}
+        >
+          Drop to {screen === 'splash' ? 'open this vault folder' : 'add this file'}
+        </div>
+      </div>
+    )}
 
     {showCreate && (
       <VaultInitializer

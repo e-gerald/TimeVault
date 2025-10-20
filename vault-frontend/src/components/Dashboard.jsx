@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { tauriInvoke } from "../tauri-wrapper";
 
 export default function Dashboard({ 
   vaultPath, 
@@ -100,11 +101,15 @@ export default function Dashboard({
     setSelectedFile(file);
     setPasswordAction('unlock-file');
     setShowPasswordField(true);
+    setStatusMessage('');
+    setIsProcessing(false);
   };
 
   const handleUnlockVault = () => {
     setPasswordAction('unlock-vault');
     setShowPasswordField(true);
+    setStatusMessage('');
+    setIsProcessing(false);
   };
 
   const handleCancelPassword = () => {
@@ -125,9 +130,22 @@ export default function Dashboard({
     
     try {
       if (passwordAction === 'unlock-file') {
-        await unlockSingle(selectedFile, password, (status) => {
-          setStatusMessage(status);
-        });
+        // Verify password only, close prompt, then perform unlock with logs in activity log
+        await tauriInvoke("verify_vault_password", { vaultDir: vaultPath, password });
+
+        if (onPasswordVerified) onPasswordVerified(password);
+
+        // Close inline prompt immediately on success
+        setPassword("");
+        setShowPasswordField(false);
+        setSelectedFile(null);
+        setPasswordAction(null);
+        setStatusMessage("");
+        setIsProcessing(false);
+
+        // Kick off unlock in background so logs appear in dashboard activity
+        unlockSingle(selectedFile, password);
+        return;
       } else if (passwordAction === 'unlock-vault') {
         await unlockAll(password, (status) => {
           setStatusMessage(status);
@@ -146,7 +164,7 @@ export default function Dashboard({
         setSelectedFile(null);
         setPasswordAction(null);
         setStatusMessage("");
-      }, 1000);
+      }, 800);
     } catch (error) {
       console.error('Password action failed:', error);
       setStatusMessage("");
@@ -400,22 +418,22 @@ export default function Dashboard({
           </div>
         </div>
 
-      </div>
+          </div>
 
-      {log && !showPasswordField && (
+          {log && !showPasswordField && (
         <div className="fixed left-4 right-4 bg-white dark:bg-[#1a1a24] shadow-lg rounded-lg overflow-hidden" style={{ zIndex: 5, bottom: '60px', marginLeft: '10px', marginRight: '10px' }}>
           <div className="px-4 py-3">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                Activity Log
-              </h3>
-            </div>
-            <div ref={logContainerRef} className="overflow-y-auto" style={{ maxHeight: '7.5rem' }}>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  Activity Log
+                </h3>
+              </div>
+              <div ref={logContainerRef} className="overflow-y-auto" style={{ maxHeight: '7.5rem' }}>
               <pre className="text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-mono break-all overflow-x-auto">
-                {log}
-              </pre>
+                  {log}
+                </pre>
+              </div>
             </div>
-          </div>
         </div>
       )}
 

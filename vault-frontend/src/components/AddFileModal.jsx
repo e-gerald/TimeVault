@@ -39,10 +39,10 @@ export default function AddFileModal({
   const handleCancel = () => {
 
     setShowAddFile(false);
-    setPassword("");
-    setShowPasswordField(false);
-    setStatusMessage("");
-    setIsProcessing(false);
+      setPassword("");
+      setShowPasswordField(false);
+      setStatusMessage("");
+      setIsProcessing(false);
     setPickedFile("");
     setFileUnlockDate(null);
   };
