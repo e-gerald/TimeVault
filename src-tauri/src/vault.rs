@@ -24,7 +24,6 @@ pub struct VaultMetadata {
     pub argon_parallelism: u32,
     pub wrapped_fek_b64: String,
     pub wrap_nonce_b64: String,
-    pub vault_unlock_date: u64,
     pub creation_ts: u64,
     pub last_verified_time: u64,
 }
@@ -157,7 +156,7 @@ async fn fetch_public_unixtime_with_retries() -> Result<(u64, String)> {
     Err(anyhow!("Date and time vertification failed. "))
 }
 
-pub fn init_vault(vault_dir: String, password: String, vault_unlock_date: u64) -> Result<()> {
+pub fn init_vault(vault_dir: String, password: String) -> Result<()> {
     let vault_path = Path::new(&vault_dir);
     ensure_vault_dir(vault_path)?;
 
@@ -184,7 +183,6 @@ pub fn init_vault(vault_dir: String, password: String, vault_unlock_date: u64) -
         argon_parallelism: parallelism,
         wrapped_fek_b64: general_purpose::STANDARD.encode(&wrapped),
         wrap_nonce_b64: general_purpose::STANDARD.encode(&wrap_nonce),
-        vault_unlock_date,
         creation_ts: SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),
         last_verified_time: 0,
     };
@@ -532,8 +530,8 @@ pub fn verify_vault_password(#[allow(non_snake_case)] vaultDir: String, password
 }
 
 #[tauri::command]
-pub fn init_vault_tauri(#[allow(non_snake_case)] vaultDir: String, password: String, #[allow(non_snake_case)] vaultUnlockDate: u64) -> Result<(), String> {
-    init_vault(vaultDir, password, vaultUnlockDate).map_err(|e| e.to_string())
+pub fn init_vault_tauri(#[allow(non_snake_case)] vaultDir: String, password: String) -> Result<(), String> {
+    init_vault(vaultDir, password).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

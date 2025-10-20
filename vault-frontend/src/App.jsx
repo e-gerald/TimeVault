@@ -15,7 +15,6 @@ export default function App() {
   const [screen, setScreen] = useState("splash");
 
   const [vaultPath, setVaultPath] = useState("");
-  const [vaultUnlockDate, setVaultUnlockDate] = useState(null);
   const [vaultPassword, setVaultPassword] = useState("");
   const [files, setFiles] = useState([]);
   const [log, setLog] = useState("");
@@ -344,11 +343,9 @@ export default function App() {
       const vaultPath = vaultDir.replace(/[/\\]$/, "") + (vaultDir.includes("/") ? "/" : "\\") + "MyTimeVault";
       appendLog("Creating vault at: " + vaultPath);
 
-      const placeholderUnlock = Math.floor(new Date('2099-12-31').getTime() / 1000);
       await tauriInvoke("init_vault_tauri", {
         vaultDir: vaultPath,
         password: vaultPassword,
-        vaultUnlockDate: placeholderUnlock,
       });
 
       appendLog("Vault initialized at " + vaultPath);
@@ -734,22 +731,20 @@ export default function App() {
     )}
 
     {showCreate && (
-      <VaultInitializer
-        setShowCreate={setShowCreate}
-        dropRef={dropRef}
-        pickedDir={pickedDir}
-        setPickedDir={setPickedDir}
-        vaultUnlockDate={vaultUnlockDate}
-        setVaultUnlockDate={setVaultUnlockDate}
-        vaultPassword={vaultPassword}
-        setVaultPassword={setVaultPassword}
-        initializeVault={initializeVault}
-        pickCreateDir={pickCreateDir}
-        showPassword={showPassword}
-        setShowPassword={setShowPassword}
-        isInitializing={isInitializing}
-        log={log}
-      />
+        <VaultInitializer
+          setShowCreate={setShowCreate}
+          dropRef={dropRef}
+          pickedDir={pickedDir}
+          setPickedDir={setPickedDir}
+          vaultPassword={vaultPassword}
+          setVaultPassword={setVaultPassword}
+          initializeVault={initializeVault}
+          pickCreateDir={pickCreateDir}
+          showPassword={showPassword}
+          setShowPassword={setShowPassword}
+          isInitializing={isInitializing}
+          log={log}
+        />
     )}
 
     {showAddFile && (

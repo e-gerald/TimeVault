@@ -5,8 +5,6 @@ export default function VaultInitializer({
   dropRef,
   pickedDir,
   setPickedDir,
-  vaultUnlockDate,
-  setVaultUnlockDate,
   vaultPassword,
   setVaultPassword,
   initializeVault,
