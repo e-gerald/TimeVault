@@ -10,6 +10,7 @@ fn main() {
             vault::add_file_tauri,
             vault::add_file_with_custom_name,
             vault::unlock_vault_tauri,
+            vault::unlock_file_tauri,
             vault::status_with_password,
             vault::vault_info,
             vault::refresh_server_time,

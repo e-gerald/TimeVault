@@ -508,14 +508,15 @@ export default function App() {
       const vaultDir = vaultPath.substring(0, vaultPath.lastIndexOf(/[\\/]/.test(vaultPath) ? (vaultPath.includes('/') ? '/' : '\\') : '/'));
       const unlockedDir = vaultDir + (vaultPath.includes('/') ? '/' : '\\') + 'Unlocked Files';
       
-      if (statusCallback) statusCallback(`Unlocking file...`);
+      if (statusCallback) statusCallback(`Decrypting and Unlocking file...`);
       // Log to activity so users see progress after the password prompt closes
-      appendLog(`Decrypting and Unlocking file: ${file.name || file.filename}...`);
-      // Temporarily call unlock_vault_tauri (backend unlocks eligible files). We'll constrain output logs to mimic single-file UX.
-      const result = await tauriInvoke("unlock_vault_tauri", {
+      const targetName = file.name || file.filename;
+      appendLog(`Decrypting and Unlocking file: ${targetName}...`);
+      const result = await tauriInvoke("unlock_file_tauri", {
         vaultDir: vaultPath,
         outDir: unlockedDir,
         password,
+        filename: targetName,
       });
       // Try to highlight the selected filename in the result if present; otherwise show concise message
       try {
@@ -550,9 +551,9 @@ export default function App() {
       const vaultDir = vaultPath.substring(0, vaultPath.lastIndexOf(/[\\/]/.test(vaultPath) ? (vaultPath.includes('/') ? '/' : '\\') : '/'));
       const unlockedDir = vaultDir + (vaultPath.includes('/') ? '/' : '\\') + 'Unlocked Files';
 
-      appendLog("Unlocking all eligible files...");
+      appendLog("Decrypting and unlocking all eligible files...");
       appendLog(`Output directory: ${unlockedDir}`);
-      if (statusCallback) statusCallback("Unlocking all eligible files...");
+      if (statusCallback) statusCallback("Decrypting and unlocking all eligible files...");
       
       const result = await tauriInvoke("unlock_vault_tauri", {
         vaultDir: vaultPath,

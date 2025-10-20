@@ -356,7 +356,7 @@ export default function Dashboard({
                     <label className="block text-xs font-medium mb-1 dark:text-gray-200">
                       {passwordAction === 'unlock-file' 
                         ? `Enter Vault Password to unlock ${selectedFile?.filename || selectedFile?.name || 'file'}` 
-                        : 'Unlock All Available Files'}
+                        : 'Unlock all eligible files'}
                     </label>
                     <input
                       type="password"

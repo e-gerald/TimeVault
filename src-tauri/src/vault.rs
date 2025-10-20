@@ -364,6 +364,80 @@ pub async fn unlock_vault(vault_dir: String, out_dir: String, password: String) 
     Ok(format!("Decrypted files: {:?}", decrypted_files))
 }
 
+pub async fn unlock_file(vault_dir: String, out_dir: String, password: String, filename: String) -> Result<String> {
+    let vault_path = Path::new(&vault_dir);
+    let out_path = Path::new(&out_dir);
+
+    let meta_path = vault_meta_path(vault_path);
+    let meta_raw = fs::read(&meta_path)?;
+    let mut meta: VaultMetadata = serde_json::from_slice(&meta_raw)?;
+
+    let salt = general_purpose::STANDARD.decode(&meta.salt_b64).map_err(|e| anyhow!(e.to_string()))?;
+    let derived = derive_key(&password, &salt, meta.argon_mem_kib, meta.argon_iters, meta.argon_parallelism)?;
+    let wrapped = general_purpose::STANDARD.decode(&meta.wrapped_fek_b64).map_err(|e| anyhow!(e.to_string()))?;
+    let wrap_nonce = general_purpose::STANDARD.decode(&meta.wrap_nonce_b64).map_err(|e| anyhow!(e.to_string()))?;
+    let fek = XChaCha20Poly1305::new(Key::from_slice(&derived))
+        .decrypt(XNonce::from_slice(&wrap_nonce), wrapped.as_ref())
+        .map_err(|_| anyhow!("Invalid password. Please check your password and try again."))?;
+
+    let (server_time, _) = fetch_public_unixtime_with_retries().await?;
+    if meta.last_verified_time != 0 && server_time < meta.last_verified_time {
+        return Err(anyhow!("Public time regression detected"));
+    }
+
+    fs::create_dir_all(out_path)?;
+
+    let mut fek_arr = [0u8; 32];
+    if fek.len() < 32 {
+        return Err(anyhow!("FEK length is invalid"));
+    }
+    fek_arr.copy_from_slice(&fek[0..32]);
+    let aead_fek = XChaCha20Poly1305::new(Key::from_slice(&fek_arr));
+
+    let fm_dir = files_meta_dir(vault_path);
+    let mut unlocked_one = false;
+
+    if fm_dir.exists() {
+        for entry in fs::read_dir(&fm_dir)? {
+            let path = entry?.path();
+            if path.is_file() {
+                let raw = fs::read(&path)?;
+                if let Ok(encrypted_meta) = serde_json::from_slice::<EncryptedFileMeta>(&raw) {
+                    if let Ok(payload) = decrypt_file_metadata(&fek_arr, &encrypted_meta.encrypted_payload_b64, &encrypted_meta.metadata_nonce_b64) {
+                        if payload.filename == filename {
+                            if server_time < payload.file_unlock_date {
+                                return Err(anyhow!("File is still locked by time policy"));
+                            }
+                            let locked_path = vault_path.join(format!(".locked_{}", payload.filename));
+                            if locked_path.exists() {
+                                let ciphertext = fs::read(&locked_path)?;
+                                let nonce_bytes = general_purpose::STANDARD.decode(&payload.nonce_b64)?;
+                                let plaintext = aead_fek
+                                    .decrypt(XNonce::from_slice(&nonce_bytes), ciphertext.as_ref())
+                                    .map_err(|_| anyhow!("Decryption failed"))?;
+                                fs::write(out_path.join(&payload.filename), plaintext)?;
+                                unlocked_one = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    meta.last_verified_time = server_time;
+    fs::write(meta_path, serde_json::to_vec_pretty(&meta)?)?;
+
+    fek_arr.zeroize();
+
+    if unlocked_one {
+        Ok(format!("Decrypted file: {}", filename))
+    } else {
+        Err(anyhow!("File not found or not eligible to unlock"))
+    }
+}
+
 pub fn get_status_with_password(vault_path: String, password: String) -> Result<Vec<serde_json::Value>> {
     let vault_path_buf = Path::new(&vault_path);
     let meta_path = vault_meta_path(vault_path_buf);
@@ -475,6 +549,11 @@ pub fn add_file_with_custom_name(#[allow(non_snake_case)] vaultDir: String, #[al
 #[tauri::command]
 pub async fn unlock_vault_tauri(#[allow(non_snake_case)] vaultDir: String, #[allow(non_snake_case)] outDir: String, password: String) -> Result<String, String> {
     unlock_vault(vaultDir, outDir, password).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn unlock_file_tauri(#[allow(non_snake_case)] vaultDir: String, #[allow(non_snake_case)] outDir: String, password: String, filename: String) -> Result<String, String> {
+    unlock_file(vaultDir, outDir, password, filename).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
