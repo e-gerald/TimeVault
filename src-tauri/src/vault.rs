@@ -384,6 +384,7 @@ pub fn get_status_with_password(vault_path: String, password: String) -> Result<
 
     let fm_dir = files_meta_dir(vault_path_buf);
     let mut results = vec![];
+    let mut tampering_warnings = vec![];
 
     if fm_dir.exists() {
         for entry in fs::read_dir(fm_dir)? {
@@ -404,17 +405,29 @@ pub fn get_status_with_password(vault_path: String, password: String) -> Result<
                                 }));
                             },
                             Err(e) => {
-                                eprintln!("WARNING: Metadata decryption failed for file: {:?}", path.file_name());
+                                let warning_msg = format!("WARNING: Metadata decryption failed for file: {:?}", path.file_name());
+                                eprintln!("{}", warning_msg);
                                 eprintln!("Possible tampering detected! Error: {}", e);
+                                tampering_warnings.push(warning_msg);
+                                tampering_warnings.push(format!("Error: Metadata decryption failed - Possible tampering detected!"));
                             }
                         }
                     },
                     Err(e) => {
-                        eprintln!("WARNING: Invalid metadata format: {:?} - {}", path.file_name(), e);
+                        let warning_msg = format!("WARNING: Invalid metadata format: {:?} - {}", path.file_name(), e);
+                        eprintln!("{}", warning_msg);
+                        tampering_warnings.push(warning_msg);
                     }
                 }
             }
         }
+    }
+
+    // Add tampering warnings to results if any were detected
+    if !tampering_warnings.is_empty() {
+        results.push(serde_json::json!({
+            "_tampering_warnings": tampering_warnings
+        }));
     }
 
     fek_arr.zeroize();

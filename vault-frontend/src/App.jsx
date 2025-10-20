@@ -86,10 +86,8 @@ export default function App() {
         appendLog("Verifying saved files...");
       }
       
-      // Use provided password or fall back to cached password
       const passwordToUse = password || cachedVaultPassword;
       
-      // Check if we have a password
       if (!passwordToUse) {
         console.log("No password available for status check");
         setFiles([]);
@@ -99,19 +97,37 @@ export default function App() {
         return;
       }
       
-      // Use password for status check
       const fileList = await tauriInvoke("status_with_password", { 
         vaultPath: path,
         password: passwordToUse 
       });
       
-      setFiles(Array.isArray(fileList) ? fileList : []);
-      if (!silent) {
-        const fileCount = Array.isArray(fileList) ? fileList.length : 0;
-        if (fileCount === 0) {
+      // Check for tampering warnings and display them
+      if (Array.isArray(fileList)) {
+        const tamperingWarningEntry = fileList.find(item => item._tampering_warnings);
+        if (tamperingWarningEntry && tamperingWarningEntry._tampering_warnings) {
+          // Display tampering warnings in activity log
+          tamperingWarningEntry._tampering_warnings.forEach(warning => {
+            appendLog(warning);
+          });
+        }
+        
+        // Filter out tampering warnings from the file list
+        const actualFiles = fileList.filter(item => !item._tampering_warnings);
+        setFiles(actualFiles);
+        
+        if (!silent) {
+          const fileCount = actualFiles.length;
+          if (fileCount === 0) {
+            appendLog("Vault is empty - no files to verify");
+          } else {
+            appendLog(`${fileCount} files verified successfully`);
+          }
+        }
+      } else {
+        setFiles([]);
+        if (!silent) {
           appendLog("Vault is empty - no files to verify");
-        } else {
-          appendLog(`${fileCount} files verified successfully`);
         }
       }
     } catch (e) {
@@ -156,7 +172,6 @@ export default function App() {
       const chosen = Array.isArray(path) ? path[0] : path;
       if (!chosen) return;
 
-      // Store the vault path and show password modal
       setPendingVaultPath(chosen);
       setShowVaultPasswordModal(true);
       return chosen;
@@ -222,7 +237,7 @@ export default function App() {
 
       appendLog("Vault initialized at " + vaultPath);
       setVaultPath(vaultPath);
-      setCachedVaultPassword(vaultPassword); // Cache password after successful vault creation
+      setCachedVaultPassword(vaultPassword);
       setShowCreate(false);
       setScreen("dashboard");
       setLog(""); 
@@ -289,7 +304,7 @@ export default function App() {
       });
 
       appendLog(`File added: ${fileToAdd.split(/[\\/]/).pop()}`);
-      setCachedVaultPassword(password); // Cache password after successful file addition
+      setCachedVaultPassword(password);
       await refreshVaultStatus(vaultPath, true, password);
     } catch (e) {
       console.error("addFileToVault", e);
@@ -424,7 +439,7 @@ export default function App() {
       appendLog(result);
       appendLog("Vault unlock complete!");
 
-      setCachedVaultPassword(password); // Cache password after successful unlock
+      setCachedVaultPassword(password);
       await refreshVaultStatus(vaultPath, false, password);
       await refreshVaultInfo(vaultPath);
     } catch (e) {
@@ -439,27 +454,23 @@ export default function App() {
   const handleVaultPasswordSubmit = async (password) => {
     setIsVaultPasswordProcessing(true);
     try {
-      // Verify the password first
       await tauriInvoke("verify_vault_password", {
         vaultDir: pendingVaultPath,
         password,
       });
       
-      // Password is valid, proceed to dashboard
       setVaultPath(pendingVaultPath);
       setCachedVaultPassword(password);
       setShowVaultPasswordModal(false);
       setPendingVaultPath("");
       setScreen("dashboard");
-      setLog(""); // Clear any previous logs
+      setLog("");
       
-      // Refresh vault status with the password
       await refreshVaultStatus(pendingVaultPath, false, password);
       await refreshVaultInfo(pendingVaultPath);
     } catch (e) {
       console.error("handleVaultPasswordSubmit", e);
       appendLog("Invalid vault password. Please try again.");
-      // Keep the modal open for retry
     } finally {
       setIsVaultPasswordProcessing(false);
     }
@@ -472,7 +483,7 @@ export default function App() {
   };
 
   const exitVault = () => {
-    setCachedVaultPassword("");  // Clear cached password
+    setCachedVaultPassword("");
     setVaultPath("");
     setFiles([]);
     setLog("");
