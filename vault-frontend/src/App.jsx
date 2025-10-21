@@ -645,19 +645,14 @@ export default function App() {
       <main className="max-w-4xl mx-auto p-6 space-y-6">
         {screen === "splash" && (
           <section className="min-h-[75vh] flex flex-col items-center justify-center text-center">
-            <div className="mx-auto w-28 h-28 rounded-2xl bg-gradient-to-tr from-indigo-500 to-pink-500 flex items-center justify-center shadow-xl">
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M12 2C9.8 2 8 4 8 6.5V8H7C5.9 8 5 8.9 5 10V19C5 20.1 5.9 21 7 21H17C18.1 21 19 20.1 19 19V10C19 8.9 18.1 8 17 8H16V6.5C16 4 14.2 2 12 2Z"
-                  stroke="white"
-                  strokeWidth="1.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+            <div className="mx-auto w-32 h-32 rounded-2xl bg-gradient-to-tr from-indigo-500 to-pink-500 flex items-center justify-center shadow-xl overflow-hidden">
+              <img 
+                src="/timevault_logo.svg" 
+                alt="Time Vault Logo" 
+                className="w-50 h-50 object-contain max-w-full max-h-full"
+                style={{ maxWidth: '200px', maxHeight: '200px' }}
+              />
             </div>
-
-            <h1 className="text-5xl font-bold mt-6">Time Vault</h1>
 
             <div className="mt-10 flex justify-center gap-8" style={{ gap: '2rem' }}>
               <button
