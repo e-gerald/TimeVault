@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 mod vault;
 
 use tauri_plugin_dialog::init as dialog_init;
