@@ -48,7 +48,7 @@ A secure file vault application built with Rust, React, and Tauri that allows us
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/e-gerald/TimeVault.git
 cd vault-client
 ```
 
