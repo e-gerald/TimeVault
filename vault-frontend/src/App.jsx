@@ -84,7 +84,6 @@ export default function App() {
     };
   }, [showCreate]);
 
-  // Helper: probe if a path is a vault folder using existing backend info endpoint
   async function isVaultFolder(path) {
     try {
       const info = await tauriInvoke("vault_info", { vaultDir: path });
@@ -94,7 +93,6 @@ export default function App() {
     }
   }
 
-  // Global drag & drop handlers: splash → open vault; dashboard → add file
   useEffect(() => {
     const onDragOver = (e) => {
       e.preventDefault();
@@ -114,7 +112,6 @@ export default function App() {
       e.stopPropagation();
       dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
       if (dragCounterRef.current === 0) {
-        // small delay to avoid flicker
         if (dragOverlayTimeoutRef.current) clearTimeout(dragOverlayTimeoutRef.current);
         dragOverlayTimeoutRef.current = setTimeout(() => setIsDraggingOver(false), 120);
       }
@@ -131,7 +128,6 @@ export default function App() {
       const textData = e.dataTransfer?.getData?.("text") || "";
 
       if (screen === "splash") {
-        // Expect a vault directory; try text path or first file path
         const candidatePath = (droppedFiles[0] && (droppedFiles[0].path || droppedFiles[0].webkitRelativePath)) || textData || "";
         if (!candidatePath) {
           appendLog("Drop a vault folder to open");
@@ -155,7 +151,6 @@ export default function App() {
         const first = droppedFiles[0];
         const filePath = first.path || textData || "";
         if (!filePath) {
-          // Fallback to file picker if path not available from drop
           appendLog("Could not read dropped file path. Opening picker...");
           const picked = await pickFileForAdd();
           if (picked) {
@@ -212,17 +207,14 @@ export default function App() {
         password: passwordToUse 
       });
       
-      // Check for tampering warnings and (optionally) display them
       if (Array.isArray(fileList)) {
         const tamperingWarningEntry = fileList.find(item => item._tampering_warnings);
         if (!silent && tamperingWarningEntry && tamperingWarningEntry._tampering_warnings) {
-          // Display tampering warnings in activity log only when not silent
           tamperingWarningEntry._tampering_warnings.forEach(warning => {
             appendLog(warning);
           });
         }
         
-        // Filter out tampering warnings from the file list
         const actualFiles = fileList.filter(item => !item._tampering_warnings);
         setFiles(actualFiles);
         
@@ -255,7 +247,6 @@ export default function App() {
           created: info.created || "—",
           last_server_time: info.last_server_time || "—",
         });
-        // Log only once with the server that actually provided the time
         if (info.time_source) {
           appendLog(`Date and time verified from ${info.time_source}`);
         } else {
@@ -506,7 +497,6 @@ export default function App() {
       const unlockedDir = vaultDir + (vaultPath.includes('/') ? '/' : '\\') + 'Unlocked Files';
       
       if (statusCallback) statusCallback(`Decrypting and Unlocking file...`);
-      // Log to activity so users see progress after the password prompt closes
       const targetName = file.name || file.filename;
       appendLog(`Decrypting and Unlocking file: ${targetName}...`);
       const result = await tauriInvoke("unlock_file_tauri", {
@@ -515,13 +505,10 @@ export default function App() {
         password,
         filename: targetName,
       });
-      // Try to highlight the selected filename in the result if present; otherwise show concise message
       try {
         const parsed = typeof result === 'string' ? JSON.parse(result.replace(/^[^\[]*/,'').replace(/}.*$/,'')) : result;
-        // no-op: result format varies; keep concise log instead
       } catch {}
       appendLog(`File unlocked to: ${unlockedDir}`);
-      // Suppress post-unlock status logs for single-file flow
       await refreshVaultStatus(vaultPath, true);
     } catch (e) {
       console.error("unlockSingle", e);
@@ -696,7 +683,6 @@ export default function App() {
       )}
     </div>
 
-    {/* Drag overlay indicator */}
     {isDraggingOver && (
       <div
         style={{

@@ -28,20 +28,18 @@ pub struct VaultMetadata {
     pub last_verified_time: u64,
 }
 
-// New encrypted metadata structure
 #[derive(Serialize, Deserialize)]
 pub struct EncryptedFileMeta {
-    pub encrypted_payload_b64: String,  // Encrypted JSON of FileMetaPayload
-    pub metadata_nonce_b64: String,     // Nonce for metadata encryption
+    pub encrypted_payload_b64: String,
+    pub metadata_nonce_b64: String, 
 }
 
-// Internal payload (not stored directly, always encrypted)
 #[derive(Serialize, Deserialize, Clone)]
 pub struct FileMetaPayload {
     pub filename: String,
     pub file_unlock_date: u64,
-    pub nonce_b64: String,      // File encryption nonce
-    pub ciphertext_b64: String, // Encrypted file content
+    pub nonce_b64: String,
+    pub ciphertext_b64: String,
 }
 
 fn default_argon_params() -> (u32, u32, u32) {
@@ -214,7 +212,6 @@ pub fn add_file_with_name(vault_dir: String, file_path: String, password: String
         file.file_name().ok_or_else(|| anyhow!("bad filename"))?.to_string_lossy().to_string()
     };
     
-    // Derive FEK first (needed for file existence check)
     let salt = general_purpose::STANDARD.decode(&meta.salt_b64).map_err(|e| anyhow!(e.to_string()))?;
     let derived = derive_key(&password, &salt, meta.argon_mem_kib, meta.argon_iters, meta.argon_parallelism)?;
     let wrapped = general_purpose::STANDARD.decode(&meta.wrapped_fek_b64).map_err(|e| anyhow!(e.to_string()))?;
@@ -236,7 +233,6 @@ pub fn add_file_with_name(vault_dir: String, file_path: String, password: String
             if path.is_file() {
                 let raw = fs::read(&path)?;
                 if let Ok(encrypted_meta) = serde_json::from_slice::<EncryptedFileMeta>(&raw) {
-                    // Try to decrypt metadata to check filename
                     if let Ok(payload) = decrypt_file_metadata(&fek_arr, &encrypted_meta.encrypted_payload_b64, &encrypted_meta.metadata_nonce_b64) {
                         if payload.filename == fname {
                             return Err(anyhow!("FILE_EXISTS:{}", fname));
@@ -256,7 +252,6 @@ pub fn add_file_with_name(vault_dir: String, file_path: String, password: String
     let locked_name = format!(".locked_{}", fname);
     fs::write(vault_path.join(&locked_name), &ciphertext)?;
 
-    // Create metadata payload
     let payload = FileMetaPayload {
         filename: fname.clone(),
         file_unlock_date,
@@ -264,10 +259,8 @@ pub fn add_file_with_name(vault_dir: String, file_path: String, password: String
         ciphertext_b64: general_purpose::STANDARD.encode(&ciphertext),
     };
 
-    // Encrypt the metadata
     let (encrypted_payload_b64, metadata_nonce_b64) = encrypt_file_metadata(&fek_arr, &payload)?;
 
-    // Create encrypted metadata structure
     let file_meta = EncryptedFileMeta {
         encrypted_payload_b64,
         metadata_nonce_b64,
@@ -326,10 +319,8 @@ pub async fn unlock_vault(vault_dir: String, out_dir: String, password: String) 
                 let raw = fs::read(&path)?;
                 match serde_json::from_slice::<EncryptedFileMeta>(&raw) {
                     Ok(encrypted_meta) => {
-                        // Decrypt metadata
                         match decrypt_file_metadata(&fek_arr, &encrypted_meta.encrypted_payload_b64, &encrypted_meta.metadata_nonce_b64) {
                             Ok(payload) => {
-                                // Check if unlocked
                                 if server_time >= payload.file_unlock_date {
                                     let locked_path = vault_path.join(format!(".locked_{}", payload.filename));
                                     if locked_path.exists() {
@@ -442,7 +433,6 @@ pub fn get_status_with_password(vault_path: String, password: String) -> Result<
     let meta_raw = fs::read(&meta_path)?;
     let meta: VaultMetadata = serde_json::from_slice(&meta_raw)?;
 
-    // Derive FEK from password
     let salt = general_purpose::STANDARD.decode(&meta.salt_b64)?;
     let derived = derive_key(&password, &salt, meta.argon_mem_kib, meta.argon_iters, meta.argon_parallelism)?;
     let wrapped = general_purpose::STANDARD.decode(&meta.wrapped_fek_b64)?;
@@ -465,10 +455,8 @@ pub fn get_status_with_password(vault_path: String, password: String) -> Result<
                 let raw = fs::read(&path)?;
                 match serde_json::from_slice::<EncryptedFileMeta>(&raw) {
                     Ok(encrypted_meta) => {
-                        // Decrypt metadata
                         match decrypt_file_metadata(&fek_arr, &encrypted_meta.encrypted_payload_b64, &encrypted_meta.metadata_nonce_b64) {
                             Ok(payload) => {
-                                // Return in frontend-compatible format
                                 results.push(serde_json::json!({
                                     "filename": payload.filename,
                                     "file_unlock_date": payload.file_unlock_date,
@@ -495,7 +483,6 @@ pub fn get_status_with_password(vault_path: String, password: String) -> Result<
         }
     }
 
-    // Add tampering warnings to results if any were detected
     if !tampering_warnings.is_empty() {
         results.push(serde_json::json!({
             "_tampering_warnings": tampering_warnings

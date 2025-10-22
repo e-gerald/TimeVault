@@ -3,7 +3,6 @@ name = "time-vault"
 version = "0.1.0"
 edition = "2021"
 
-# required so `tauri::generate_context!()` works
 build = "build.rs"
 
 [dependencies]

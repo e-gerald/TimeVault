@@ -143,7 +143,6 @@ export default function Dashboard({
         setStatusMessage("");
         setIsProcessing(false);
 
-        // Kick off unlock in background so logs appear in dashboard activity
         unlockSingle(selectedFile, password);
         return;
       } else if (passwordAction === 'unlock-vault') {
@@ -152,7 +151,6 @@ export default function Dashboard({
         });
       }
       
-      // Cache the password for future status checks
       if (onPasswordVerified) {
         onPasswordVerified(password);
       }
@@ -174,7 +172,6 @@ export default function Dashboard({
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#0f0f15]">
-      {/* Header */}
       <div className="bg-white dark:bg-[#1a1a24] border-b border-gray-200 dark:border-gray-700">
         <div className="px-12 py-5 max-w-7xl mx-auto" style={{ marginLeft: '10px', marginRight: '10px' }}>
           <div className="flex items-center justify-between">
@@ -269,7 +266,7 @@ export default function Dashboard({
 
                     const aTime = a.created_at || a.created || a.file_unlock_date || a.unlock_time || a.unlockDate || 0;
                     const bTime = b.created_at || b.created || b.file_unlock_date || b.unlock_time || b.unlockDate || 0;
-                    return bTime - aTime; // Descending order (newest first)
+                    return bTime - aTime;
                   }).map((file, index) => (
                     <tr key={index}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100 text-center">
