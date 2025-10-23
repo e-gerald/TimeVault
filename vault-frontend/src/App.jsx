@@ -493,8 +493,7 @@ export default function App() {
       appendLog("Password verified successfully");
       if (statusCallback) statusCallback("Password verified successfully");
 
-      const vaultDir = vaultPath.substring(0, vaultPath.lastIndexOf(/[\\/]/.test(vaultPath) ? (vaultPath.includes('/') ? '/' : '\\') : '/'));
-      const unlockedDir = vaultDir + (vaultPath.includes('/') ? '/' : '\\') + 'Unlocked Files';
+      const unlockedDir = vaultPath + (vaultPath.includes('/') ? '/' : '\\') + 'Unlocked Files';
       
       if (statusCallback) statusCallback(`Decrypting and Unlocking file...`);
       const targetName = file.name || file.filename;
@@ -532,8 +531,7 @@ export default function App() {
       appendLog("Password verified successfully");
       if (statusCallback) statusCallback("Password verified successfully");
 
-      const vaultDir = vaultPath.substring(0, vaultPath.lastIndexOf(/[\\/]/.test(vaultPath) ? (vaultPath.includes('/') ? '/' : '\\') : '/'));
-      const unlockedDir = vaultDir + (vaultPath.includes('/') ? '/' : '\\') + 'Unlocked Files';
+      const unlockedDir = vaultPath + (vaultPath.includes('/') ? '/' : '\\') + 'Unlocked Files';
 
       appendLog("Decrypting and unlocking all eligible files...");
       appendLog(`Output directory: ${unlockedDir}`);
@@ -596,6 +594,7 @@ export default function App() {
     setFiles([]);
     setLog("");
     setVaultInfo({ created: "—", last_server_time: "—" });
+    setIsInitializing(false);
     setScreen("splash");
   };
 
@@ -649,7 +648,13 @@ export default function App() {
                 Open Existing Vault
               </button>
               <button
-                onClick={() => setShowCreate(true)}
+                onClick={() => {
+                  setPickedDir("");
+                  setVaultPassword("");
+                  setLog("");
+                  setIsInitializing(false);
+                  setShowCreate(true);
+                }}
                 className="px-8 py-4 bg-indigo-600 text-white text-lg rounded-lg shadow hover:bg-indigo-700"
               >
                 Create New Vault
