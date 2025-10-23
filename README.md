@@ -9,6 +9,7 @@ A secure file vault application built with Rust, React, and Tauri that allows us
 - **File Management**: Add, view, and manage encrypted files
 - **Duplicate Handling**: Smart file naming system to handle duplicate files
 - **Tamper Protection**: Detect and prevent unauthorized modifications to file metadata.
+- **Flexible Decrypt & Unlock**: Decrypt and unlock either a single file or every file in the vault at once.
 - **Activity Logging**: Track all vault operations and file activities
 - **Modern UI**: Clean, responsive interface with dark/light theme support
 - **Cross-Platform**: Built with Tauri for native desktop performance
