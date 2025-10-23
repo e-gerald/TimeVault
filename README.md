@@ -8,6 +8,8 @@ A secure file vault application built with Rust, React, and Tauri that allows us
 - **Time-Based Unlocking**: Set specific dates and times for when files become accessible
 - **File Management**: Add, view, and manage encrypted files
 - **Duplicate Handling**: Smart file naming system to handle duplicate files
+- **Tamper Protection**: Detect and prevent unauthorized modifications to file metadata.
+- **Flexible Decrypt & Unlock**: Decrypt and unlock either a single file or all eligible files in the vault at once.
 - **Activity Logging**: Track all vault operations and file activities
 - **Modern UI**: Clean, responsive interface with dark/light theme support
 - **Cross-Platform**: Built with Tauri for native desktop performance
@@ -48,7 +50,7 @@ A secure file vault application built with Rust, React, and Tauri that allows us
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/e-gerald/TimeVault.git
 cd vault-client
 ```
 
@@ -98,7 +100,6 @@ cargo tauri build
 2. Click "Create New Vault" or "Open Existing Vault"
 3. Select a directory for your vault
 4. Set a master password
-5. Choose an unlock date/time for the vault
 
 ### Adding Files
 
@@ -111,7 +112,7 @@ cargo tauri build
 ### Managing Files
 
 - **View Files**: See all files in your vault with their unlock dates
-- **Unlock Files**: Click "Open" on unlocked files to decrypt and access them
+- **Unlock Files**: Click "Open" on unlocked files to decrypt and access them, or click "Unlock Vault" to decrept and access all eligible files in the vault
 - **Activity Log**: Monitor all vault operations in the activity log
 - **Refresh Status**: Check for any updates or changes
 
