@@ -100,7 +100,6 @@ cargo tauri build
 2. Click "Create New Vault" or "Open Existing Vault"
 3. Select a directory for your vault
 4. Set a master password
-5. Choose an unlock date/time for the vault
 
 ### Adding Files
 
