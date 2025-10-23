@@ -112,7 +112,7 @@ cargo tauri build
 ### Managing Files
 
 - **View Files**: See all files in your vault with their unlock dates
-- **Unlock Files**: Click "Open" on unlocked files to decrypt and access them
+- **Unlock Files**: Click "Open" on unlocked files to decrypt and access them, or click "Unlock Vault" to decrept and access all eligible files in the vault
 - **Activity Log**: Monitor all vault operations in the activity log
 - **Refresh Status**: Check for any updates or changes
 
