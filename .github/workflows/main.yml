@@ -1,4 +1,4 @@
-name: TimeVault Build (Cargo Tauri)
+name: TimeVault Build
 
 on:
   push:
@@ -7,9 +7,8 @@ on:
   pull_request:
 
 jobs:
-  build:
+  build-linux:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -46,14 +45,48 @@ jobs:
           npm install
           cd ..
 
-      - name: Build Tauri app (Cargo)
+      - name: Build Tauri app (Linux)
         run: cargo tauri build
 
-      - name: Upload build artifact
+      - name: Upload Linux build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: timevault-build
-          path: src-tauri/target/release/bundle/
+          name: timevault-linux
+          path: src-tauri/target/release/bundle/**/*
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --locked
+
+      - name: Install JS dependencies
+        run: |
+          npm install
+          cd vault-frontend
+          npm install
+          cd ..
+
+      - name: Build Tauri app (Windows)
+        run: cargo tauri build --target x86_64-pc-windows-msvc
+
+      - name: Upload Windows build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: timevault-windows
+          path: src-tauri/target/release/bundle/windows/**/*  
+
 
       # - name: Upload to SignPath for signing
       #   uses: signpath/github-action@v1
