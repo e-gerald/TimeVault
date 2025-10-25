@@ -36,7 +36,28 @@ jobs:
             build-essential \
             curl \
             wget \
-            file
+            file \
+            imagemagick \
+            icoutils
+
+      - name: Generate Linux icon
+        run: |
+          # Create icns file from png for Linux (needed for bundling)
+          mkdir -p temp.iconset
+          # Generate different sizes for icns
+          convert src-tauri/icons/icon.png -resize 16x16 temp.iconset/icon_16x16.png
+          convert src-tauri/icons/icon.png -resize 32x32 temp.iconset/icon_16x16@2x.png
+          convert src-tauri/icons/icon.png -resize 32x32 temp.iconset/icon_32x32.png
+          convert src-tauri/icons/icon.png -resize 64x64 temp.iconset/icon_32x32@2x.png
+          convert src-tauri/icons/icon.png -resize 128x128 temp.iconset/icon_128x128.png
+          convert src-tauri/icons/icon.png -resize 256x256 temp.iconset/icon_128x128@2x.png
+          convert src-tauri/icons/icon.png -resize 256x256 temp.iconset/icon_256x256.png
+          convert src-tauri/icons/icon.png -resize 512x512 temp.iconset/icon_256x256@2x.png
+          convert src-tauri/icons/icon.png -resize 512x512 temp.iconset/icon_512x512.png
+          convert src-tauri/icons/icon.png -resize 1024x1024 temp.iconset/icon_512x512@2x.png
+          # Create icns file
+          icotool -c -o src-tauri/icons/icon.icns temp.iconset/*.png
+          rm -rf temp.iconset
 
       - name: Install Tauri CLI
         run: cargo install tauri-cli --locked
@@ -54,8 +75,30 @@ jobs:
           npm run build
           cd ..
 
+      - name: Verify icon files
+        run: |
+          echo "Checking icon files..."
+          ls -la src-tauri/icons/
+          if [ -f "src-tauri/icons/icon.icns" ]; then
+            echo "icon.icns exists"
+          else
+            echo "icon.icns missing"
+          fi
+
       - name: Build Tauri app (Linux)
         run: cargo tauri build
+
+      - name: Debug Linux build
+        run: |
+          echo "Checking if bundle directory exists..."
+          if [ -d "src-tauri/target/release/bundle" ]; then
+            echo "Bundle directory exists"
+            ls -la src-tauri/target/release/bundle/
+          else
+            echo "Bundle directory does not exist"
+            echo "Checking target/release directory..."
+            ls -la src-tauri/target/release/
+          fi
 
       - name: List Linux build artifacts
         run: ls -R src-tauri/target/release/bundle/
@@ -82,9 +125,24 @@ jobs:
 
       - name: Install WiX Toolset
         run: |
+          # Download and install WiX Toolset v3.11.2
           $url = "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311.exe"
-          Invoke-WebRequest -Uri $url -OutFile "wix311.exe"
-          Start-Process -FilePath "wix311.exe" -ArgumentList "/quiet" -Wait
+          $output = "wix311.exe"
+          Invoke-WebRequest -Uri $url -OutFile $output
+          Start-Process -FilePath $output -ArgumentList "/quiet" -Wait
+          # Add WiX to PATH
+          $env:PATH += ";C:\Program Files (x86)\WiX Toolset v3.11\bin"
+          echo "PATH=$env:PATH" >> $env:GITHUB_ENV
+
+      - name: Generate Windows icon
+        run: |
+          # Copy existing ico file or create icns for Windows
+          if (Test-Path "src-tauri/icons/icon.ico") {
+            Copy-Item "src-tauri/icons/icon.ico" "src-tauri/icons/icon.icns"
+          } else {
+            # Create a simple icns file from png (Windows can use icns format)
+            Copy-Item "src-tauri/icons/icon.png" "src-tauri/icons/icon.icns"
+          }
 
       - name: Install Tauri CLI
         run: cargo install tauri-cli --locked
@@ -102,8 +160,30 @@ jobs:
           npm run build
           cd ..
 
+      - name: Verify icon files (Windows)
+        run: |
+          echo "Checking icon files..."
+          dir src-tauri\icons\
+          if (Test-Path "src-tauri\icons\icon.icns") {
+            echo "icon.icns exists"
+          } else {
+            echo "icon.icns missing"
+          }
+
       - name: Build Tauri app (Windows)
         run: cargo tauri build -- --target x86_64-pc-windows-msvc
+
+      - name: Debug Windows build
+        run: |
+          echo "Checking if bundle directory exists..."
+          if (Test-Path "src-tauri\target\release\bundle") {
+            echo "Bundle directory exists"
+            dir src-tauri\target\release\bundle\
+          } else {
+            echo "Bundle directory does not exist"
+            echo "Checking target\release directory..."
+            dir src-tauri\target\release\
+          }
 
       - name: List Windows build artifacts
         run: dir src-tauri\target\release\bundle\ /s
@@ -176,8 +256,30 @@ jobs:
           npm run build
           cd ..
 
+      - name: Verify icon files (macOS)
+        run: |
+          echo "Checking icon files..."
+          ls -la src-tauri/icons/
+          if [ -f "src-tauri/icons/icon.icns" ]; then
+            echo "icon.icns exists"
+          else
+            echo "icon.icns missing"
+          fi
+
       - name: Build Tauri app (macOS)
         run: cargo tauri build
+
+      - name: Debug macOS build
+        run: |
+          echo "Checking if bundle directory exists..."
+          if [ -d "src-tauri/target/release/bundle" ]; then
+            echo "Bundle directory exists"
+            ls -la src-tauri/target/release/bundle/
+          else
+            echo "Bundle directory does not exist"
+            echo "Checking target/release directory..."
+            ls -la src-tauri/target/release/
+          fi
 
       - name: List macOS build artifacts
         run: ls -R src-tauri/target/release/bundle/
