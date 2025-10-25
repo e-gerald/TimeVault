@@ -1,8 +1,12 @@
 [package]
-name = "time-vault"
-version = "0.1.0"
+name = "TimeVault"
+version = "1.0.0" 
 edition = "2021"
-
+authors = ["Gerald Enyenwa <geraldenyenwa@live.com>"]
+license = "MIT"
+description = "TimeVault — A secure, non-custodial timed vault for keys and passphrases file storage."
+repository = "https://github.com/e-gerald/TimeVault"
+readme = "README.md"
 build = "build.rs"
 
 [dependencies]
