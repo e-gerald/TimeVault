@@ -53,8 +53,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: timevault-build
-          path: |
-            src-tauri/target/release/bundle/
+          path: src-tauri/target/release/bundle/
 
       # - name: Upload to SignPath for signing
       #   uses: signpath/github-action@v1
