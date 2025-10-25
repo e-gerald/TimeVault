@@ -48,6 +48,12 @@ jobs:
           npm install
           cd ..
 
+      - name: Build frontend
+        run: |
+          cd vault-frontend
+          npm run build
+          cd ..
+
       - name: Build Tauri app (Linux)
         run: cargo tauri build
 
@@ -74,6 +80,12 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install WiX Toolset
+        run: |
+          $url = "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311.exe"
+          Invoke-WebRequest -Uri $url -OutFile "wix311.exe"
+          Start-Process -FilePath "wix311.exe" -ArgumentList "/quiet" -Wait
+
       - name: Install Tauri CLI
         run: cargo install tauri-cli --locked
 
@@ -82,6 +94,12 @@ jobs:
           npm install
           cd vault-frontend
           npm install
+          cd ..
+
+      - name: Build frontend
+        run: |
+          cd vault-frontend
+          npm run build
           cd ..
 
       - name: Build Tauri app (Windows)
@@ -119,6 +137,29 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install macOS dependencies
+        run: |
+          brew install create-dmg
+
+      - name: Generate macOS icon
+        run: |
+          # Create icns file from png for macOS
+          mkdir -p temp.iconset
+          # Generate different sizes for icns
+          sips -z 16 16 src-tauri/icons/icon.png --out temp.iconset/icon_16x16.png
+          sips -z 32 32 src-tauri/icons/icon.png --out temp.iconset/icon_16x16@2x.png
+          sips -z 32 32 src-tauri/icons/icon.png --out temp.iconset/icon_32x32.png
+          sips -z 64 64 src-tauri/icons/icon.png --out temp.iconset/icon_32x32@2x.png
+          sips -z 128 128 src-tauri/icons/icon.png --out temp.iconset/icon_128x128.png
+          sips -z 256 256 src-tauri/icons/icon.png --out temp.iconset/icon_128x128@2x.png
+          sips -z 256 256 src-tauri/icons/icon.png --out temp.iconset/icon_256x256.png
+          sips -z 512 512 src-tauri/icons/icon.png --out temp.iconset/icon_256x256@2x.png
+          sips -z 512 512 src-tauri/icons/icon.png --out temp.iconset/icon_512x512.png
+          sips -z 1024 1024 src-tauri/icons/icon.png --out temp.iconset/icon_512x512@2x.png
+          # Create icns file
+          iconutil -c icns temp.iconset -o src-tauri/icons/icon.icns
+          rm -rf temp.iconset
+
       - name: Install Tauri CLI
         run: cargo install tauri-cli --locked
 
@@ -127,6 +168,12 @@ jobs:
           npm install
           cd vault-frontend
           npm install
+          cd ..
+
+      - name: Build frontend
+        run: |
+          cd vault-frontend
+          npm run build
           cd ..
 
       - name: Build Tauri app (macOS)
