@@ -1,0 +1,49 @@
+name: TimeVault Build and Sign
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build Tauri app
+        run: npm run tauri build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: timevault-build
+          path: |
+            src-tauri/target/release/bundle/
+            dist/
+
+      # - name: Upload to SignPath for signing
+      #   uses: signpath/github-action@v1
+      #   with:
+      #     organization-id: yorg-id
+      #     project-id: ${{ secrets.SIGNPATH_PROJECT_ID }}
+      #     api-token: ${{ secrets.SIGNPATH_TOKEN }}
+      #     input-artifact-path: src-tauri/target/release/bundle/msi/TimeVault_1.0.1_x64_en-US.msi
+      #     signing-policy-slug: default
