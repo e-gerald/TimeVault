@@ -128,13 +128,16 @@ jobs:
           }
 
       - name: Build Tauri app (Windows)
-        run: cargo tauri build -- --target x86_64-pc-windows-msvc
+        run: |
+          echo "Starting Tauri build for Windows..."
+          # Try building with verbose output to see what's happening
+          cargo tauri build --verbose -- --target x86_64-pc-windows-msvc
 
       - name: Upload Windows build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: timevault-windows
-          path: "src-tauri/target/release/bundle/windows/**/*"
+          path: "src-tauri/target/release/bundle/nsis/**/*"
 
       # - name: Upload to SignPath for signing
       #   uses: signpath/github-action@v1
