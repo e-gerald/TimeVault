@@ -1,5 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
+  "identifier": "com.TimeVault.timevault",
   "productName": "TimeVault",
   "version": "1.0.0",
 
@@ -24,13 +25,14 @@
 
   "bundle": {
     "active": true,
-    "identifier": "com.TimeVault.timevault",
     "publisher": "TimeVault",
     "shortDescription": "A secure, non-custodial timed vault for keys and passphrases file storage.",
     "copyright": "© 2025 TimeVault",
     "category": "Utility",
     "targets": {
-      "all": true
+      "linux": ["deb", "rpm", "appimage"],
+      "windows": ["msi", "exe"],
+      "macos": ["dmg", "app"]
     },
     "icon": [
       "icons/icon.ico",
