@@ -36,7 +36,9 @@ jobs:
             build-essential \
             curl \
             wget \
-            file
+            file \
+            imagemagick \
+            icoutils
 
       - name: Install Tauri CLI
         run: cargo install tauri-cli --locked
@@ -53,6 +55,28 @@ jobs:
           cd vault-frontend
           npm run build
           cd ..
+
+      - name: Create missing icns file
+        run: |
+          # Only create icns if it doesn't exist, using existing icon.png
+          if [ ! -f "src-tauri/icons/icon.icns" ]; then
+            mkdir -p temp.iconset
+            convert src-tauri/icons/icon.png -resize 16x16 temp.iconset/icon_16x16.png
+            convert src-tauri/icons/icon.png -resize 32x32 temp.iconset/icon_16x16@2x.png
+            convert src-tauri/icons/icon.png -resize 32x32 temp.iconset/icon_32x32.png
+            convert src-tauri/icons/icon.png -resize 64x64 temp.iconset/icon_32x32@2x.png
+            convert src-tauri/icons/icon.png -resize 128x128 temp.iconset/icon_128x128.png
+            convert src-tauri/icons/icon.png -resize 256x256 temp.iconset/icon_128x128@2x.png
+            convert src-tauri/icons/icon.png -resize 256x256 temp.iconset/icon_256x256.png
+            convert src-tauri/icons/icon.png -resize 512x512 temp.iconset/icon_256x256@2x.png
+            convert src-tauri/icons/icon.png -resize 512x512 temp.iconset/icon_512x512.png
+            convert src-tauri/icons/icon.png -resize 1024x1024 temp.iconset/icon_512x512@2x.png
+            icotool -c -o src-tauri/icons/icon.icns temp.iconset/*.png
+            rm -rf temp.iconset
+            echo "Created missing icon.icns file"
+          else
+            echo "icon.icns already exists, keeping existing file"
+          fi
 
       - name: Build Tauri app (Linux)
         run: cargo tauri build
@@ -92,6 +116,16 @@ jobs:
           cd vault-frontend
           npm run build
           cd ..
+
+      - name: Create missing icns file
+        run: |
+          # Only create icns if it doesn't exist, using existing icon.ico
+          if (!(Test-Path "src-tauri\icons\icon.icns")) {
+            Copy-Item "src-tauri\icons\icon.ico" "src-tauri\icons\icon.icns"
+            echo "Created missing icon.icns file from existing icon.ico"
+          } else {
+            echo "icon.icns already exists, keeping existing file"
+          }
 
       - name: Build Tauri app (Windows)
         run: cargo tauri build -- --target x86_64-pc-windows-msvc
@@ -140,6 +174,28 @@ jobs:
           cd vault-frontend
           npm run build
           cd ..
+
+      - name: Create missing icns file
+        run: |
+          # Only create icns if it doesn't exist, using existing icon.png
+          if [ ! -f "src-tauri/icons/icon.icns" ]; then
+            mkdir -p temp.iconset
+            sips -z 16 16 src-tauri/icons/icon.png --out temp.iconset/icon_16x16.png
+            sips -z 32 32 src-tauri/icons/icon.png --out temp.iconset/icon_16x16@2x.png
+            sips -z 32 32 src-tauri/icons/icon.png --out temp.iconset/icon_32x32.png
+            sips -z 64 64 src-tauri/icons/icon.png --out temp.iconset/icon_32x32@2x.png
+            sips -z 128 128 src-tauri/icons/icon.png --out temp.iconset/icon_128x128.png
+            sips -z 256 256 src-tauri/icons/icon.png --out temp.iconset/icon_128x128@2x.png
+            sips -z 256 256 src-tauri/icons/icon.png --out temp.iconset/icon_256x256.png
+            sips -z 512 512 src-tauri/icons/icon.png --out temp.iconset/icon_256x256@2x.png
+            sips -z 512 512 src-tauri/icons/icon.png --out temp.iconset/icon_512x512.png
+            sips -z 1024 1024 src-tauri/icons/icon.png --out temp.iconset/icon_512x512@2x.png
+            iconutil -c icns temp.iconset -o src-tauri/icons/icon.icns
+            rm -rf temp.iconset
+            echo "Created missing icon.icns file"
+          else
+            echo "icon.icns already exists, keeping existing file"
+          fi
 
       - name: Build Tauri app (macOS)
         run: cargo tauri build
