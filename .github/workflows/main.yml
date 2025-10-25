@@ -48,7 +48,7 @@ jobs:
           cd ..
 
       - name: Build Tauri app (Linux)
-        run: cargo tauri build --release
+        run: cargo tauri build -- --release
 
       - name: List Linux build artifacts
         run: ls -R src-tauri/target/release/bundle/
@@ -84,7 +84,7 @@ jobs:
           cd ..
 
       - name: Build Tauri app (Windows)
-        run: cargo tauri build --release --target x86_64-pc-windows-msvc
+        run: cargo tauri build -- --release --target x86_64-pc-windows-msvc
 
       - name: List Windows build artifacts
         run: dir src-tauri\target\release\bundle\ /s
