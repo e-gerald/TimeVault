@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - 'v*'
   pull_request:
 
 jobs:
@@ -52,7 +54,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: timevault-linux
-          path: src-tauri/target/release/bundle/**/*
+          path: "src-tauri/target/release/bundle/**/*"
 
   build-windows:
     runs-on: windows-latest
@@ -85,14 +87,43 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: timevault-windows
-          path: src-tauri/target/release/bundle/windows/**/*  
+          path: "src-tauri/target/release/bundle/windows/**/*"
 
-
-      # - name: Upload to SignPath for signing
+      # - name: Uploading to SignPath for signing
       #   uses: signpath/github-action@v1
       #   with:
-      #     organization-id: yorg-id
+      #     organization-id: your-org-id
       #     project-id: ${{ secrets.SIGNPATH_PROJECT_ID }}
       #     api-token: ${{ secrets.SIGNPATH_TOKEN }}
       #     input-artifact-path: src-tauri/target/release/bundle/msi/TimeVault_1.0.1_x64_en-US.msi
       #     signing-policy-slug: default
+
+  release:
+    needs: [build-linux, build-windows]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Linux build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: timevault-linux
+          path: dist/linux
+
+      - name: Download Windows build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: timevault-windows
+          path: dist/windows
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "TimeVault ${{ github.ref_name }}"
+          body: "Automated release for version ${{ github.ref_name }}."
+          draft: false
+          prerelease: false
+          files: |
+            dist/linux/**
+            dist/windows/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
