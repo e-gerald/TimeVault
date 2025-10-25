@@ -79,7 +79,11 @@ jobs:
           fi
 
       - name: Build Tauri app (Linux)
-        run: cargo tauri build
+        run: |
+          echo "Starting Tauri build for Linux..."
+          cd src-tauri
+          cargo tauri build --verbose
+          cd ..
 
       - name: Upload Linux build artifacts
         uses: actions/upload-artifact@v4
@@ -130,8 +134,19 @@ jobs:
       - name: Build Tauri app (Windows)
         run: |
           echo "Starting Tauri build for Windows..."
-          # Try building with verbose output to see what's happening
+          # Change to src-tauri directory and build from there
+          cd src-tauri
           cargo tauri build --verbose -- --target x86_64-pc-windows-msvc
+          echo "Build completed. Checking executable location:"
+          if (Test-Path "target\release\TimeVault.exe") {
+            echo "Executable found at: target\release\TimeVault.exe"
+            Get-Item "target\release\TimeVault.exe" | Select-Object Name, Length, FullName
+          } else {
+            echo "Executable not found at expected location"
+            echo "Checking target\release directory:"
+            Get-ChildItem "target\release\" -Name
+          }
+          cd ..
 
       - name: Upload Windows build artifacts
         uses: actions/upload-artifact@v4
@@ -201,7 +216,11 @@ jobs:
           fi
 
       - name: Build Tauri app (macOS)
-        run: cargo tauri build
+        run: |
+          echo "Starting Tauri build for macOS..."
+          cd src-tauri
+          cargo tauri build --verbose
+          cd ..
 
       - name: Upload macOS build artifacts
         uses: actions/upload-artifact@v4
