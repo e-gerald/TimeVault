@@ -98,7 +98,7 @@ jobs:
       # - name: Uploading to SignPath for signing
       #   uses: signpath/github-action@v1
       #   with:
-      #     organization-id: your-org-id
+      #     organization-id: TimeVault
       #     project-id: ${{ secrets.SIGNPATH_PROJECT_ID }}
       #     api-token: ${{ secrets.SIGNPATH_TOKEN }}
       #     input-artifact-path: src-tauri/target/release/bundle/msi/TimeVault_1.0.1_x64_en-US.msi
