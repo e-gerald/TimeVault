@@ -1,15 +1,16 @@
-name: TimeVault Build (Cargo Tauri)
+name: TimeVault Build
 
 on:
   push:
     branches:
       - main
+    tags:
+      - 'v*'
   pull_request:
 
 jobs:
-  build:
+  build-linux:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -46,21 +47,89 @@ jobs:
           npm install
           cd ..
 
-      - name: Build Tauri app (Cargo)
-        run: cargo tauri build
+      - name: Build Tauri app (Linux)
+        run: cargo tauri build --release
 
-      - name: Upload build artifact
+      - name: List Linux build artifacts
+        run: ls -R src-tauri/target/release/bundle/
+
+      - name: Upload Linux build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: timevault-build
-          path: |
-            src-tauri/target/release/bundle/
+          name: timevault-linux
+          path: "src-tauri/target/release/bundle/**/*"
 
-      # - name: Upload to SignPath for signing
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --locked
+
+      - name: Install JS dependencies
+        run: |
+          npm install
+          cd vault-frontend
+          npm install
+          cd ..
+
+      - name: Build Tauri app (Windows)
+        run: cargo tauri build --release --target x86_64-pc-windows-msvc
+
+      - name: List Windows build artifacts
+        run: dir src-tauri\target\release\bundle\ /s
+
+      - name: Upload Windows build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: timevault-windows
+          path: "src-tauri/target/release/bundle/windows/**/*"
+
+      # - name: Uploading to SignPath for signing
       #   uses: signpath/github-action@v1
       #   with:
-      #     organization-id: yorg-id
+      #     organization-id: your-org-id
       #     project-id: ${{ secrets.SIGNPATH_PROJECT_ID }}
       #     api-token: ${{ secrets.SIGNPATH_TOKEN }}
       #     input-artifact-path: src-tauri/target/release/bundle/msi/TimeVault_1.0.1_x64_en-US.msi
       #     signing-policy-slug: default
+
+  release:
+    needs: [build-linux, build-windows]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Linux build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: timevault-linux
+          path: dist/linux
+
+      - name: Download Windows build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: timevault-windows
+          path: dist/windows
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "TimeVault ${{ github.ref_name }}"
+          body: "Automated release for version ${{ github.ref_name }}."
+          draft: false
+          prerelease: false
+          files: |
+            dist/linux/**
+            dist/windows/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
