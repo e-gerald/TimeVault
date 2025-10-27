@@ -25,7 +25,6 @@
 
   "bundle": {
     "active": true,
-    "identifier": "com.TimeVault.timevault",
     "publisher": "TimeVault",
     "shortDescription": "A secure, non-custodial timed vault for keys and passphrases file storage.",
     "copyright": "© 2025 TimeVault",
