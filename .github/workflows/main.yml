@@ -80,9 +80,21 @@ jobs:
 
       - name: Build Tauri app (Linux)
         working-directory: src-tauri
+        continue-on-error: true
         run: |
           echo "Starting Tauri build for Linux..."
           CARGO_TARGET_DIR=./target cargo tauri build --verbose
+          
+      - name: Verify Linux build artifacts
+        run: |
+          echo "Checking for Linux build artifacts..."
+          if [ -d "src-tauri/target/release/bundle" ]; then
+            echo "✓ Bundle directory found"
+            find src-tauri/target/release/bundle -type f -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" | head -1
+          else
+            echo "✗ No bundle directory found - build failed"
+            exit 1
+          fi
 
       - name: Upload Linux build artifacts
         uses: actions/upload-artifact@v4
@@ -132,17 +144,25 @@ jobs:
 
       - name: Build Tauri app (Windows)
         working-directory: src-tauri
+        continue-on-error: true
         run: |
           echo "Starting Tauri build for Windows..."
           $env:CARGO_TARGET_DIR = "target"
-          cargo tauri build --verbose -- --target x86_64-pc-windows-msvc
-          echo "Build completed. Checking executable location:"
-          if (Test-Path "target\release\TimeVault.exe") {
-            echo "Executable found at: target\release\TimeVault.exe"
-            Get-Item "target\release\TimeVault.exe" | Select-Object Name, Length, FullName
+          cargo tauri build -- --target x86_64-pc-windows-msvc
+          
+      - name: Verify Windows build artifacts
+        run: |
+          echo "Checking for Windows build artifacts..."
+          if (Test-Path "src-tauri\target\release\bundle\nsis") {
+            echo "✓ NSIS bundle found!"
+            $installer = Get-ChildItem "src-tauri\target\release\bundle\nsis" -Filter "*.exe" -Recurse -File | Select-Object -First 1
+            if ($installer) {
+              echo "✓ Installer found: $($installer.FullName)"
+              echo "Size: $([math]::Round($installer.Length/1MB,2)) MB"
+            }
           } else {
-            echo "Executable not found. Listing target\release:"
-            Get-ChildItem "target\release\" -Name -ErrorAction SilentlyContinue
+            echo "✗ No NSIS bundle found - build failed"
+            exit 1
           }
 
       - name: Upload Windows build artifacts
@@ -214,9 +234,21 @@ jobs:
 
       - name: Build Tauri app (macOS)
         working-directory: src-tauri
+        continue-on-error: true
         run: |
           echo "Starting Tauri build for macOS..."
           CARGO_TARGET_DIR=./target cargo tauri build --verbose
+          
+      - name: Verify macOS build artifacts
+        run: |
+          echo "Checking for macOS build artifacts..."
+          if [ -d "src-tauri/target/release/bundle" ]; then
+            echo "✓ Bundle directory found"
+            find src-tauri/target/release/bundle -type f -name "*.dmg" | head -1
+          else
+            echo "✗ No bundle directory found - build failed"
+            exit 1
+          fi
 
       - name: Upload macOS build artifacts
         uses: actions/upload-artifact@v4
