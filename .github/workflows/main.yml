@@ -58,7 +58,6 @@ jobs:
 
       - name: Create missing icns file
         run: |
-          # Only create icns if it doesn't exist, using existing icon.png
           if [ ! -f "src-tauri/icons/icon.icns" ]; then
             mkdir -p temp.iconset
             convert src-tauri/icons/icon.png -resize 16x16 temp.iconset/icon_16x16.png
@@ -134,7 +133,6 @@ jobs:
 
       - name: Create missing icns file
         run: |
-          # Only create icns if it doesn't exist, using existing icon.ico
           if (!(Test-Path "src-tauri\icons\icon.icns")) {
             Copy-Item "src-tauri\icons\icon.ico" "src-tauri\icons\icon.icns"
             echo "Created missing icon.icns file from existing icon.ico"
@@ -142,26 +140,60 @@ jobs:
             echo "icon.icns already exists, keeping existing file"
           }
 
+      - name: Configure Windows Defender
+        run: |
+          echo "Configuring Windows Defender to exclude build directory..."
+          Add-MpPreference -ExclusionPath "$PWD\src-tauri\target" -ErrorAction SilentlyContinue
+          echo "Windows Defender configured"
+
       - name: Build Tauri app (Windows)
         working-directory: src-tauri
         continue-on-error: true
         run: |
           echo "Starting Tauri build for Windows..."
           $env:CARGO_TARGET_DIR = "target"
-          cargo tauri build -- --target x86_64-pc-windows-msvc
+          cargo tauri build
+          
+      - name: Wait for file system to settle
+        run: |
+          echo "Waiting for file system to settle..."
+          Start-Sleep -Seconds 5
+          echo "Done waiting"
           
       - name: Verify Windows build artifacts
         run: |
           echo "Checking for Windows build artifacts..."
+          
+          if (Test-Path "src-tauri\target\release\TimeVault.exe") {
+            echo "✓ TimeVault.exe found at: src-tauri\target\release\TimeVault.exe"
+            $exe = Get-Item "src-tauri\target\release\TimeVault.exe"
+            echo "Size: $([math]::Round($exe.Length/1MB,2)) MB"
+          } else {
+            echo "✗ TimeVault.exe not found!"
+            echo "Checking what files exist in src-tauri\target\release\..."
+            Get-ChildItem "src-tauri\target\release\" -ErrorAction SilentlyContinue | Select-Object Name, Length
+            exit 1
+          }
+          
           if (Test-Path "src-tauri\target\release\bundle\nsis") {
-            echo "✓ NSIS bundle found!"
+            echo "✓ NSIS bundle directory found!"
             $installer = Get-ChildItem "src-tauri\target\release\bundle\nsis" -Filter "*.exe" -Recurse -File | Select-Object -First 1
             if ($installer) {
               echo "✓ Installer found: $($installer.FullName)"
               echo "Size: $([math]::Round($installer.Length/1MB,2)) MB"
+            } else {
+              echo "✗ No installer .exe found in bundle directory"
+              Get-ChildItem "src-tauri\target\release\bundle\nsis" -Recurse | Select-Object FullName
             }
           } else {
-            echo "✗ No NSIS bundle found - build failed"
+            echo "✗ No NSIS bundle directory found"
+            echo "Checking for other bundle formats..."
+            if (Test-Path "src-tauri\target\release\bundle") {
+              Get-ChildItem "src-tauri\target\release\bundle" | Select-Object Name
+              echo "Directory exists but no NSIS subfolder"
+            } else {
+              echo "No bundle directory exists at all"
+            }
             exit 1
           }
 
@@ -212,7 +244,6 @@ jobs:
 
       - name: Create missing icns file
         run: |
-          # Only create icns if it doesn't exist, using existing icon.png
           if [ ! -f "src-tauri/icons/icon.icns" ]; then
             mkdir -p temp.iconset
             sips -z 16 16 src-tauri/icons/icon.png --out temp.iconset/icon_16x16.png
