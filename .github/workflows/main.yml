@@ -79,11 +79,10 @@ jobs:
           fi
 
       - name: Build Tauri app (Linux)
+        working-directory: src-tauri
         run: |
           echo "Starting Tauri build for Linux..."
-          cd src-tauri
           CARGO_TARGET_DIR=./target cargo tauri build --verbose
-          cd ..
 
       - name: Upload Linux build artifacts
         uses: actions/upload-artifact@v4
@@ -132,20 +131,18 @@ jobs:
           }
 
       - name: Build Tauri app (Windows)
+        working-directory: src-tauri
         run: |
           echo "Starting Tauri build for Windows..."
-          cd src-tauri
           $env:CARGO_TARGET_DIR = "target"
           cargo tauri build --verbose -- --target x86_64-pc-windows-msvc
-          cd ..
           echo "Build completed. Checking executable location:"
-          if (Test-Path "src-tauri\target\release\TimeVault.exe") {
-            echo "Executable found at: src-tauri\target\release\TimeVault.exe"
-            Get-Item "src-tauri\target\release\TimeVault.exe" | Select-Object Name, Length, FullName
+          if (Test-Path "target\release\TimeVault.exe") {
+            echo "Executable found at: target\release\TimeVault.exe"
+            Get-Item "target\release\TimeVault.exe" | Select-Object Name, Length, FullName
           } else {
-            echo "Executable not found at expected location"
-            echo "Checking src-tauri\target\release directory:"
-            Get-ChildItem "src-tauri\target\release\" -Name
+            echo "Executable not found. Listing target\release:"
+            Get-ChildItem "target\release\" -Name -ErrorAction SilentlyContinue
           }
 
       - name: Upload Windows build artifacts
@@ -216,11 +213,10 @@ jobs:
           fi
 
       - name: Build Tauri app (macOS)
+        working-directory: src-tauri
         run: |
           echo "Starting Tauri build for macOS..."
-          cd src-tauri
           CARGO_TARGET_DIR=./target cargo tauri build --verbose
-          cd ..
 
       - name: Upload macOS build artifacts
         uses: actions/upload-artifact@v4
