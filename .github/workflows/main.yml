@@ -82,7 +82,7 @@ jobs:
         run: |
           echo "Starting Tauri build for Linux..."
           cd src-tauri
-          cargo tauri build --verbose
+          CARGO_TARGET_DIR=./target cargo tauri build --verbose
           cd ..
 
       - name: Upload Linux build artifacts
@@ -134,19 +134,19 @@ jobs:
       - name: Build Tauri app (Windows)
         run: |
           echo "Starting Tauri build for Windows..."
-          # Change to src-tauri directory and build from there
           cd src-tauri
+          $env:CARGO_TARGET_DIR = "target"
           cargo tauri build --verbose -- --target x86_64-pc-windows-msvc
+          cd ..
           echo "Build completed. Checking executable location:"
-          if (Test-Path "target\release\TimeVault.exe") {
-            echo "Executable found at: target\release\TimeVault.exe"
-            Get-Item "target\release\TimeVault.exe" | Select-Object Name, Length, FullName
+          if (Test-Path "src-tauri\target\release\TimeVault.exe") {
+            echo "Executable found at: src-tauri\target\release\TimeVault.exe"
+            Get-Item "src-tauri\target\release\TimeVault.exe" | Select-Object Name, Length, FullName
           } else {
             echo "Executable not found at expected location"
-            echo "Checking target\release directory:"
-            Get-ChildItem "target\release\" -Name
+            echo "Checking src-tauri\target\release directory:"
+            Get-ChildItem "src-tauri\target\release\" -Name
           }
-          cd ..
 
       - name: Upload Windows build artifacts
         uses: actions/upload-artifact@v4
@@ -219,7 +219,7 @@ jobs:
         run: |
           echo "Starting Tauri build for macOS..."
           cd src-tauri
-          cargo tauri build --verbose
+          CARGO_TARGET_DIR=./target cargo tauri build --verbose
           cd ..
 
       - name: Upload macOS build artifacts
