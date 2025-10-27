@@ -72,26 +72,16 @@ jobs:
             convert src-tauri/icons/icon.png -resize 1024x1024 temp.iconset/icon_512x512@2x.png
             icotool -c -o src-tauri/icons/icon.icns temp.iconset/*.png
             rm -rf temp.iconset
-            echo "Created missing icon.icns file"
-          else
-            echo "icon.icns already exists, keeping existing file"
           fi
 
       - name: Build Tauri app (Linux)
         working-directory: src-tauri
-        continue-on-error: true
-        run: |
-          echo "Starting Tauri build for Linux..."
-          CARGO_TARGET_DIR=./target cargo tauri build --verbose
+        run: CARGO_TARGET_DIR=./target cargo tauri build
           
       - name: Verify Linux build artifacts
         run: |
-          echo "Checking for Linux build artifacts..."
-          if [ -d "src-tauri/target/release/bundle" ]; then
-            echo "✓ Bundle directory found"
-            find src-tauri/target/release/bundle -type f -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" | head -1
-          else
-            echo "✗ No bundle directory found - build failed"
+          if [ ! -d "src-tauri/target/release/bundle" ]; then
+            echo "Build failed - no bundle directory found"
             exit 1
           fi
 
@@ -135,65 +125,24 @@ jobs:
         run: |
           if (!(Test-Path "src-tauri\icons\icon.icns")) {
             Copy-Item "src-tauri\icons\icon.ico" "src-tauri\icons\icon.icns"
-            echo "Created missing icon.icns file from existing icon.ico"
-          } else {
-            echo "icon.icns already exists, keeping existing file"
           }
 
       - name: Configure Windows Defender
-        run: |
-          echo "Configuring Windows Defender to exclude build directory..."
-          Add-MpPreference -ExclusionPath "$PWD\src-tauri\target" -ErrorAction SilentlyContinue
-          echo "Windows Defender configured"
+        run: Add-MpPreference -ExclusionPath "$PWD\src-tauri\target" -ErrorAction SilentlyContinue
 
       - name: Build Tauri app (Windows)
         working-directory: src-tauri
-        continue-on-error: true
         run: |
-          echo "Starting Tauri build for Windows..."
           $env:CARGO_TARGET_DIR = "target"
           cargo tauri build
           
       - name: Wait for file system to settle
-        run: |
-          echo "Waiting for file system to settle..."
-          Start-Sleep -Seconds 5
-          echo "Done waiting"
+        run: Start-Sleep -Seconds 5
           
       - name: Verify Windows build artifacts
         run: |
-          echo "Checking for Windows build artifacts..."
-          
-          if (Test-Path "src-tauri\target\release\TimeVault.exe") {
-            echo "✓ TimeVault.exe found at: src-tauri\target\release\TimeVault.exe"
-            $exe = Get-Item "src-tauri\target\release\TimeVault.exe"
-            echo "Size: $([math]::Round($exe.Length/1MB,2)) MB"
-          } else {
-            echo "✗ TimeVault.exe not found!"
-            echo "Checking what files exist in src-tauri\target\release\..."
-            Get-ChildItem "src-tauri\target\release\" -ErrorAction SilentlyContinue | Select-Object Name, Length
-            exit 1
-          }
-          
-          if (Test-Path "src-tauri\target\release\bundle\nsis") {
-            echo "✓ NSIS bundle directory found!"
-            $installer = Get-ChildItem "src-tauri\target\release\bundle\nsis" -Filter "*.exe" -Recurse -File | Select-Object -First 1
-            if ($installer) {
-              echo "✓ Installer found: $($installer.FullName)"
-              echo "Size: $([math]::Round($installer.Length/1MB,2)) MB"
-            } else {
-              echo "✗ No installer .exe found in bundle directory"
-              Get-ChildItem "src-tauri\target\release\bundle\nsis" -Recurse | Select-Object FullName
-            }
-          } else {
-            echo "✗ No NSIS bundle directory found"
-            echo "Checking for other bundle formats..."
-            if (Test-Path "src-tauri\target\release\bundle") {
-              Get-ChildItem "src-tauri\target\release\bundle" | Select-Object Name
-              echo "Directory exists but no NSIS subfolder"
-            } else {
-              echo "No bundle directory exists at all"
-            }
+          if (!(Test-Path "src-tauri\target\release\bundle\nsis")) {
+            echo "Build failed - NSIS bundle not found"
             exit 1
           }
 
@@ -258,26 +207,16 @@ jobs:
             sips -z 1024 1024 src-tauri/icons/icon.png --out temp.iconset/icon_512x512@2x.png
             iconutil -c icns temp.iconset -o src-tauri/icons/icon.icns
             rm -rf temp.iconset
-            echo "Created missing icon.icns file"
-          else
-            echo "icon.icns already exists, keeping existing file"
           fi
 
       - name: Build Tauri app (macOS)
         working-directory: src-tauri
-        continue-on-error: true
-        run: |
-          echo "Starting Tauri build for macOS..."
-          CARGO_TARGET_DIR=./target cargo tauri build --verbose
+        run: CARGO_TARGET_DIR=./target cargo tauri build
           
       - name: Verify macOS build artifacts
         run: |
-          echo "Checking for macOS build artifacts..."
-          if [ -d "src-tauri/target/release/bundle" ]; then
-            echo "✓ Bundle directory found"
-            find src-tauri/target/release/bundle -type f -name "*.dmg" | head -1
-          else
-            echo "✗ No bundle directory found - build failed"
+          if [ ! -d "src-tauri/target/release/bundle" ]; then
+            echo "Build failed - no bundle directory found"
             exit 1
           fi
 
