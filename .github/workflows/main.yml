@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+      - staging
+    tags:
+      - 'v*'
   pull_request:
 
 jobs:
@@ -33,7 +36,9 @@ jobs:
             build-essential \
             curl \
             wget \
-            file
+            file \
+            imagemagick \
+            icoutils
 
       - name: Install Tauri CLI
         run: cargo install tauri-cli --locked
@@ -45,14 +50,46 @@ jobs:
           npm install
           cd ..
 
+      - name: Build frontend
+        run: |
+          cd vault-frontend
+          npm run build
+          cd ..
+
+      - name: Create missing icns file
+        run: |
+          if [ ! -f "src-tauri/icons/icon.icns" ]; then
+            mkdir -p temp.iconset
+            convert src-tauri/icons/icon.png -resize 16x16 temp.iconset/icon_16x16.png
+            convert src-tauri/icons/icon.png -resize 32x32 temp.iconset/icon_16x16@2x.png
+            convert src-tauri/icons/icon.png -resize 32x32 temp.iconset/icon_32x32.png
+            convert src-tauri/icons/icon.png -resize 64x64 temp.iconset/icon_32x32@2x.png
+            convert src-tauri/icons/icon.png -resize 128x128 temp.iconset/icon_128x128.png
+            convert src-tauri/icons/icon.png -resize 256x256 temp.iconset/icon_128x128@2x.png
+            convert src-tauri/icons/icon.png -resize 256x256 temp.iconset/icon_256x256.png
+            convert src-tauri/icons/icon.png -resize 512x512 temp.iconset/icon_256x256@2x.png
+            convert src-tauri/icons/icon.png -resize 512x512 temp.iconset/icon_512x512.png
+            convert src-tauri/icons/icon.png -resize 1024x1024 temp.iconset/icon_512x512@2x.png
+            icotool -c -o src-tauri/icons/icon.icns temp.iconset/*.png
+            rm -rf temp.iconset
+          fi
+
       - name: Build Tauri app (Linux)
-        run: cargo tauri build
+        working-directory: src-tauri
+        run: CARGO_TARGET_DIR=./target cargo tauri build
+          
+      - name: Verify Linux build artifacts
+        run: |
+          if [ ! -d "src-tauri/target/release/bundle" ]; then
+            echo "Build failed - no bundle directory found"
+            exit 1
+          fi
 
       - name: Upload Linux build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: timevault-linux
-          path: src-tauri/target/release/bundle/**/*
+          path: "src-tauri/target/release/bundle/**/*"
 
   build-windows:
     runs-on: windows-latest
@@ -78,14 +115,42 @@ jobs:
           npm install
           cd ..
 
+      - name: Build frontend
+        run: |
+          cd vault-frontend
+          npm run build
+          cd ..
+
+      - name: Create missing icns file
+        run: |
+          if (!(Test-Path "src-tauri\icons\icon.icns")) {
+            Copy-Item "src-tauri\icons\icon.ico" "src-tauri\icons\icon.icns"
+          }
+
+      - name: Configure Windows Defender
+        run: Add-MpPreference -ExclusionPath "$PWD\src-tauri\target" -ErrorAction SilentlyContinue
+
       - name: Build Tauri app (Windows)
-        run: cargo tauri build --target x86_64-pc-windows-msvc
+        working-directory: src-tauri
+        run: |
+          $env:CARGO_TARGET_DIR = "target"
+          cargo tauri build
+          
+      - name: Wait for file system to settle
+        run: Start-Sleep -Seconds 5
+          
+      - name: Verify Windows build artifacts
+        run: |
+          if (!(Test-Path "src-tauri\target\release\bundle\nsis")) {
+            echo "Build failed - NSIS bundle not found"
+            exit 1
+          }
 
       - name: Upload Windows build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: timevault-windows
-          path: src-tauri/target/release/bundle/windows/**/*
+          path: "src-tauri/target/release/bundle/nsis/**/*"
 
       # - name: Upload to SignPath for signing
       #   uses: signpath/github-action@v1
@@ -95,3 +160,105 @@ jobs:
       #     api-token: ${{ secrets.SIGNPATH_TOKEN }}
       #     input-artifact-path: src-tauri/target/release/bundle/msi/TimeVault_1.0.1_x64_en-US.msi
       #     signing-policy-slug: default
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --locked
+
+      - name: Install JS dependencies
+        run: |
+          npm install
+          cd vault-frontend
+          npm install
+          cd ..
+
+      - name: Build frontend
+        run: |
+          cd vault-frontend
+          npm run build
+          cd ..
+
+      - name: Create missing icns file
+        run: |
+          if [ ! -f "src-tauri/icons/icon.icns" ]; then
+            mkdir -p temp.iconset
+            sips -z 16 16 src-tauri/icons/icon.png --out temp.iconset/icon_16x16.png
+            sips -z 32 32 src-tauri/icons/icon.png --out temp.iconset/icon_16x16@2x.png
+            sips -z 32 32 src-tauri/icons/icon.png --out temp.iconset/icon_32x32.png
+            sips -z 64 64 src-tauri/icons/icon.png --out temp.iconset/icon_32x32@2x.png
+            sips -z 128 128 src-tauri/icons/icon.png --out temp.iconset/icon_128x128.png
+            sips -z 256 256 src-tauri/icons/icon.png --out temp.iconset/icon_128x128@2x.png
+            sips -z 256 256 src-tauri/icons/icon.png --out temp.iconset/icon_256x256.png
+            sips -z 512 512 src-tauri/icons/icon.png --out temp.iconset/icon_256x256@2x.png
+            sips -z 512 512 src-tauri/icons/icon.png --out temp.iconset/icon_512x512.png
+            sips -z 1024 1024 src-tauri/icons/icon.png --out temp.iconset/icon_512x512@2x.png
+            iconutil -c icns temp.iconset -o src-tauri/icons/icon.icns
+            rm -rf temp.iconset
+          fi
+
+      - name: Build Tauri app (macOS)
+        working-directory: src-tauri
+        run: CARGO_TARGET_DIR=./target cargo tauri build
+          
+      - name: Verify macOS build artifacts
+        run: |
+          if [ ! -d "src-tauri/target/release/bundle" ]; then
+            echo "Build failed - no bundle directory found"
+            exit 1
+          fi
+
+      - name: Upload macOS build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: timevault-macos
+          path: "src-tauri/target/release/bundle/**/*"
+
+  release:
+    needs: [build-linux, build-windows, build-macos]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Linux build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: timevault-linux
+          path: dist/linux
+
+      - name: Download Windows build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: timevault-windows
+          path: dist/windows
+
+      - name: Download macOS build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: timevault-macos
+          path: dist/macos
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "TimeVault ${{ github.ref_name }}"
+          body: "Automated release for version ${{ github.ref_name }}."
+          draft: false
+          prerelease: false
+          files: |
+            dist/linux/**
+            dist/windows/**
+            dist/macos/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

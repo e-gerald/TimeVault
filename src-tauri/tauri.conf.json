@@ -29,10 +29,11 @@
     "shortDescription": "A secure, non-custodial timed vault for keys and passphrases file storage.",
     "copyright": "© 2025 TimeVault",
     "category": "Utility",
-    "targets": ["deb", "rpm", "msi"],
+    "targets": ["deb", "rpm", "appimage", "nsis", "dmg"],
     "icon": [
       "icons/icon.ico",
-      "icons/icon.png"
+      "icons/icon.png",
+      "icons/icon.icns"
     ]
   }
 }
