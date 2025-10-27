@@ -171,7 +171,7 @@ jobs:
           name: timevault-windows
           path: "src-tauri/target/release/bundle/nsis/**/*"
 
-      # - name: Upload to SignPath for signing
+      # - name: Uploading to SignPath for signing
       #   uses: signpath/github-action@v1
       #   with:
       #     organization-id: TimeVault
