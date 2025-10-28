@@ -9,6 +9,11 @@ on:
       - 'v*'
   pull_request:
 
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
 jobs:
   build-linux:
     runs-on: ubuntu-latest
