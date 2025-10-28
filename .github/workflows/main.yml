@@ -261,7 +261,11 @@ jobs:
           body: |
             ## TimeVault ${{ github.ref_name }}
             
-            Automated release with cross-platform installers.
+            ### What's New
+            - Initial stable release
+            - Cross-platform support (Linux, Windows, macOS)
+            - Secure timed vault functionality
+            - Modern, intuitive user interface
             
             ### Downloads
             - **Linux**: `.deb`, `.AppImage`, `.rpm` packages
@@ -272,7 +276,12 @@ jobs:
             1. Download the appropriate installer for your platform
             2. Run the installer following the on-screen instructions
             3. Launch TimeVault from your applications menu
-          draft: true
+            
+            ### System Requirements
+            - **Linux**: Ubuntu 18.04+ or equivalent
+            - **Windows**: Windows 10 or later
+            - **macOS**: macOS 10.15 or later
+          draft: false
           prerelease: false
           files: |
             dist/linux/**/*.deb
