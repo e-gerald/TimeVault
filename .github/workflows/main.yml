@@ -258,12 +258,27 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           name: "TimeVault ${{ github.ref_name }}"
-          body: "Automated release for version ${{ github.ref_name }}."
-          draft: false
+          body: |
+            ## TimeVault ${{ github.ref_name }}
+            
+            Automated release with cross-platform installers.
+            
+            ### Downloads
+            - **Linux**: `.deb`, `.AppImage`, `.rpm` packages
+            - **Windows**: NSIS installer (`.exe`)
+            - **macOS**: Disk image (`.dmg`)
+            
+            ### Installation
+            1. Download the appropriate installer for your platform
+            2. Run the installer following the on-screen instructions
+            3. Launch TimeVault from your applications menu
+          draft: true
           prerelease: false
           files: |
-            dist/linux/**
-            dist/windows/**
-            dist/macos/**
+            dist/linux/**/*.deb
+            dist/linux/**/*.AppImage
+            dist/linux/**/*.rpm
+            dist/windows/**/*.exe
+            dist/macos/**/*.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
