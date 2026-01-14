@@ -15,7 +15,7 @@ export const tauriOpen = async (opts = {}) => {
 
     return result.toString();
   } catch (err) {
-    console.error("❌ Error opening file/folder dialog:", err);
+    console.error("Error opening file/folder dialog:", err);
     throw new Error(
       "Failed to open file/folder dialog. Ensure @tauri-apps/plugin-dialog is installed and enabled."
     );
@@ -27,7 +27,7 @@ export const tauriInvoke = async (cmd, payload) => {
     const { invoke } = await import("@tauri-apps/api/core");
     return await invoke(cmd, payload);
   } catch (err) {
-    console.error(`❌ tauriInvoke failed for command "${cmd}":`, err);
+    console.error(`tauriInvoke failed for command "${cmd}":`, err);
     throw err;
   }
 };
