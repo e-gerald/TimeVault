@@ -175,3 +175,4 @@ For issues, questions, or contributions, please open an issue on the GitHub repo
 
 **Note**: This application handles sensitive data. Always ensure you have backups of your vault and remember your master password, as there is no password recovery mechanism.
 ```
+Dont forget to leave a STAR for the project
