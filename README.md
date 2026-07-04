@@ -177,3 +177,4 @@ For issues, questions, or contributions, please open an issue on the GitHub repo
 ```
 Dont forget to leave a STAR for the project
 Feel free to contribute to the project and create a PR.
+Let's build this together for the cryto community
